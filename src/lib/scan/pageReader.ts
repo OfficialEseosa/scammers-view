@@ -174,7 +174,10 @@ export class PageReader {
       const isPreview = im.alt === "page preview image";
       const near = `${im.alt} ${im.context}`.toLowerCase();
       const mentions = names.some((nm) => near.includes(nm));
-      if (!(isPreview && out.isSubjectsOwnPage) && !mentions) continue;
+      // Also the preview image of an anchored page ABOUT them (Devpost project, team or news page):
+      // event/team photos are often the og:image. The in-browser face match decides later.
+      const anchoredAbout = isPreview && best !== "unconfirmed" && out.findings.length > 0;
+      if (!(isPreview && out.isSubjectsOwnPage) && !mentions && !anchoredAbout) continue;
       res.push({
         category: "photo",
         label: `Photo on ${title}`,
@@ -183,7 +186,7 @@ export class PageReader {
         snippet: im.alt || "",
         imageUrl: im.url,
         anchor: best,
-        confidence: best === "unconfirmed" ? 0.4 : isPreview ? 0.6 : 0.5,
+        confidence: best === "unconfirmed" ? 0.4 : isPreview && out.isSubjectsOwnPage ? 0.6 : isPreview && !mentions ? 0.4 : 0.5,
         riskWeight: 3,
       });
     }

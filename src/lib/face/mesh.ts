@@ -3,9 +3,9 @@ import type { VisionModule } from "./landmarker";
 
 /** Drawing for the 478-point "3D scan" mesh overlay. */
 
-const MESH = "rgba(111, 209, 192, 0.38)"; // --calm
-const CONTOUR = "rgba(111, 209, 192, 0.95)";
-const IRIS = "rgba(242, 180, 65, 0.95)"; // --amber
+const MESH = "rgba(255, 255, 255, 0.34)";
+const CONTOUR = "rgba(255, 255, 255, 0.95)";
+const IRIS = "rgba(255, 255, 255, 0.95)";
 
 export type Connection = { start: number; end: number };
 
@@ -67,7 +67,7 @@ export function drawMesh(
     const r = 1.1 * unit;
     for (const p of lm) {
       const near = Math.abs(p.y - bandY) < (maxY - minY) * 0.04;
-      ctx.fillStyle = near ? "rgba(239, 234, 223, 0.95)" : "rgba(111, 209, 192, 0.7)";
+      ctx.fillStyle = near ? "rgba(255, 255, 255, 1)" : "rgba(255, 255, 255, 0.6)";
       ctx.fillRect(p.x * w - r, p.y * h - r, r * 2, r * 2);
     }
   }

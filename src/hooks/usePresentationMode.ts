@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-const KEY = "sv_presentation";
+const KEY = "sv_mask";
 const EVENT = "sv-presentation-change";
 
 function subscribe(cb: () => void) {
@@ -16,15 +16,15 @@ function subscribe(cb: () => void) {
 
 function read(): boolean {
   try {
-    return window.localStorage.getItem(KEY) !== "0";
+    return window.localStorage.getItem(KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
-/** Presentation mode masks finding values for projecting. Defaults to ON, persisted in localStorage. */
+/** Presentation mode masks finding values for projecting. Defaults to OFF (everything shown), persisted in localStorage. */
 export function usePresentationMode(): [boolean, (next: boolean) => void] {
-  const on = useSyncExternalStore(subscribe, read, () => true);
+  const on = useSyncExternalStore(subscribe, read, () => false);
   const set = useCallback((next: boolean) => {
     try {
       window.localStorage.setItem(KEY, next ? "1" : "0");

@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { loadImageForFaces } from "@/lib/face/image";
 import { createFaceLandmarker } from "@/lib/face/landmarker";
-import { drawMesh, meshConnections } from "@/lib/face/mesh";
+import { drawMesh, meshConnections, type Connection } from "@/lib/face/mesh";
+import { SpinningScan, type ScanPoint } from "../SpinningScan";
 import { estimateYawDeg, geometricYawOffset, matrixYawDeg } from "@/lib/face/pose";
 
 /**
@@ -15,6 +16,7 @@ export function MeshStillTest() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [url, setUrl] = useState("");
   const [out, setOut] = useState<string>("");
+  const [spin, setSpin] = useState<{ points: ScanPoint[]; tess: Connection[]; contours: Connection[]; aspect: number } | null>(null);
 
   async function run() {
     setOut("Loading…");
@@ -35,6 +37,8 @@ export function MeshStillTest() {
       ctx.drawImage(img, 0, 0);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
+      const first = result.faceLandmarks[0];
+      setSpin(first ? { points: first.map((q) => ({ x: q.x, y: q.y, z: q.z })), tess, contours, aspect: img.width / img.height } : null);
       const faces = result.faceLandmarks.map((lm, i) => {
         const m = result.facialTransformationMatrixes?.[i]?.data;
         return {
@@ -67,6 +71,11 @@ export function MeshStillTest() {
       </button>
       <p className="font-mono text-xs" data-testid="mesh-out">{out}</p>
       <canvas ref={canvasRef} className="w-full max-w-md -scale-x-100 rounded-xl bg-surface" />
+      {spin && (
+        <div className="aspect-[3/4] w-full max-w-md rounded-xl bg-canvas" data-testid="spin">
+          <SpinningScan {...spin} className="h-full w-full" />
+        </div>
+      )}
     </div>
   );
 }

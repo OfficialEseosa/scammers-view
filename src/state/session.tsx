@@ -23,7 +23,7 @@ export type ResultsTab = "fixes" | "map" | "practice" | "quiz" | "photos" | "pla
 
 /** `more`: listed under the "More" menu instead of the main tab row. */
 export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated: boolean; more?: boolean }[] = [
-  { id: "fixes", label: "Lock it down", short: "Fixes", gated: false },
+  { id: "fixes", label: "Break the chain", short: "Fixes", gated: false },
   { id: "map", label: "How they'd get in", short: "Attack", gated: true },
   { id: "practice", label: "Practice attacks", short: "Practice", gated: true },
   { id: "photos", label: "Photos of you", short: "Photos", gated: true },

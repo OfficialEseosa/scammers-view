@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { createFaceLandmarker } from "@/lib/face/landmarker";
-import { drawMesh, meshConnections } from "@/lib/face/mesh";
+import { drawMesh, meshConnections, type Connection } from "@/lib/face/mesh";
+import { SpinningScan, type ScanPoint } from "./SpinningScan";
 import { HeadTurnChallenge, TURN_TARGET_DEG, type CaptureKind } from "@/lib/face/liveness";
 import { SAME_PERSON_THRESHOLD } from "@/lib/face/match";
 import { estimateYawDeg } from "@/lib/face/pose";
@@ -113,6 +114,14 @@ function measureLight(
   return { frame: all / (pw * ph), face: faceN ? faceSum / faceN : null };
 }
 
+/** Shortest time the turning scan stays up, so it reads as a step and not a flicker. */
+const MIN_VERIFY_MS = 1800;
+
+/** Resolves after the browser has painted, so heavy work doesn't block a pending frame. */
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
 const PROMPT: Record<TurnDirection, string> = {
   left: "Turn your head to your left",
   right: "Turn your head to your right",
@@ -127,6 +136,9 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
   const runIdRef = useRef(0);
   const capturesRef = useRef<Partial<Record<CaptureKind, HTMLCanvasElement>>>({});
   const passedRef = useRef(false);
+  // The front capture's mesh, kept in memory to show as a turning 3D scan while frames are matched.
+  const scanModelRef = useRef<{ points: ScanPoint[]; tess: Connection[]; contours: Connection[]; aspect: number } | null>(null);
+  const [scanModel, setScanModel] = useState<typeof scanModelRef.current>(null);
   const onCompleteRef = useRef(onComplete);
   const onFailRef = useRef(onFail);
   useEffect(() => {
@@ -171,18 +183,25 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
 
   const verify = useCallback(
     async (runId: number, order: [TurnDirection, TurnDirection]) => {
+      setScanModel(scanModelRef.current);
       setStage({ kind: "verifying" });
+      const startedAt = performance.now();
+      // Matching is heavy. Let the turning scan paint before it starts, and between frames.
+      await nextPaint();
       const { front, left, right } = capturesRef.current;
       if (!front || !left || !right) {
         fail("The scan didn't finish", "Some frames were missing. Try again.");
         return;
       }
       try {
-        const [f, l, r] = [
-          await describeLargestFace(front),
-          await describeLargestFace(left),
-          await describeLargestFace(right),
-        ];
+        const f = await describeLargestFace(front);
+        await nextPaint();
+        const l = await describeLargestFace(left);
+        await nextPaint();
+        const r = await describeLargestFace(right);
+        // Keep the scan on screen long enough to register.
+        const shown = performance.now() - startedAt;
+        if (shown < MIN_VERIFY_MS) await new Promise((res) => setTimeout(res, MIN_VERIFY_MS - shown));
         if (runId !== runIdRef.current) return;
         if (!f) {
           fail("We couldn't read your face", "Face a light source, hold the phone at eye level, and try again.");
@@ -382,6 +401,14 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       const update = challenge.update({ now, yaw: sampleYaw });
       if (update.capture) {
         capturesRef.current[update.capture] = captureFrame(video);
+        if (update.capture === "front" && faces[0]) {
+          scanModelRef.current = {
+            points: faces[0].map((p) => ({ x: p.x, y: p.y, z: p.z })),
+            tess,
+            contours,
+            aspect: video.videoWidth / Math.max(1, video.videoHeight),
+          };
+        }
         if (update.capture !== "front") setStepsDone((n) => n + 1);
       }
       if (update.failure) {
@@ -390,6 +417,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       }
       if (challenge.phase === "passed") {
         cancelAnimationFrame(rafRef.current);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         void verify(runId, order);
         return;
       }
@@ -466,7 +494,11 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         <span className="pointer-events-none absolute bottom-5 right-5 h-7 w-7 border-b-2 border-r-2 border-fg" aria-hidden="true" />
 
         {stage.kind !== "scanning" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-canvas/75 p-8 text-center backdrop-blur-sm">
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center ${
+              stage.kind === "verifying" ? "bg-canvas" : "bg-canvas/75 backdrop-blur-sm"
+            }`}
+          >
             {stage.kind === "idle" && (
               <>
                 <FaceGlyph />
@@ -480,10 +512,20 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
               </p>
             )}
             {stage.kind === "verifying" && (
-              <p className="flex items-center gap-3 text-lg">
-                <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
-                Matching every frame
-              </p>
+              <>
+                {scanModel ? (
+                  <SpinningScan
+                    points={scanModel.points}
+                    tess={scanModel.tess}
+                    contours={scanModel.contours}
+                    aspect={scanModel.aspect}
+                    className="h-[62%] w-full"
+                  />
+                ) : (
+                  <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
+                )}
+                <p className="text-lg">Matching your scan</p>
+              </>
             )}
             {stage.kind === "passed" && (
               <>

@@ -184,7 +184,7 @@ function DoneBanner({ onGo, left, held, onHold }: { onGo: () => void; left: numb
   return (
     <div className="sv-card flex flex-wrap items-center gap-3 border-fg bg-canvas p-4">
       <Button size="lg" onClick={onGo} className="flex-1">
-        Lock it down
+        Break the chain
       </Button>
       {!held ? (
         <button type="button" onClick={onHold} className="min-h-11 text-sm text-muted underline underline-offset-4 hover:text-fg">

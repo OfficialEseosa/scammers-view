@@ -203,3 +203,41 @@ test("runScan: a 402 billing error from Gemini ends the scan with a typed error"
   delete process.env.SCAN_SOURCES;
   assert.equal(events.filter((e) => e.type === "score").length, 0);
 });
+
+// ---- automatic handle discovery (fictional subject only) ----
+const SUBJ = { name: "Alex Rivera", email: "alexrivera@example.com", githubLogin: "arivera-dev", school: "Example State University" };
+
+test("handle candidates come only from the subject's own identity, strongest first", async () => {
+  const { candidateHandles } = await import("./handles.ts");
+  const c = candidateHandles(SUBJ, []);
+  assert.equal(c[0].handle, "alexrivera");
+  assert.equal(c[0].strength, "exact");
+  assert.ok(c.some((x) => x.handle === "alex.rivera" && x.strength === "name"));
+  assert.ok(c.every((x) => /alex|rivera/.test(x.handle)));
+  const x = candidateHandles(SUBJ, [], { maxLen: 15, allowDots: false });
+  assert.ok(x.every((h) => !h.handle.includes(".") && h.handle.length <= 15));
+});
+
+test("a reused username with the subject's name on the profile is accepted", async () => {
+  const { candidateHandles, judgeOwnership } = await import("./handles.ts");
+  const c = candidateHandles(SUBJ, [])[0];
+  const o = judgeOwnership(SUBJ, c, { handle: c.handle, displayName: "Alex R." }, []);
+  assert.equal(o.accepted, true);
+  assert.equal(o.anchor, "email");
+});
+
+test("a partial-name handle on a stranger's profile is rejected", async () => {
+  const { judgeOwnership } = await import("./handles.ts");
+  const weak = { handle: "alex", strength: "weak", from: "name" };
+  assert.equal(judgeOwnership(SUBJ, weak, { handle: "alex", displayName: "Alex Morgan", bio: "Chef in Lisbon" }, []).accepted, false);
+  const name = { handle: "alex.rivera", strength: "name", from: "name" };
+  assert.equal(judgeOwnership(SUBJ, name, { handle: "alex.rivera", displayName: "Sam Lee", bio: "Travel photos" }, []).accepted, false);
+});
+
+test("profile context (school) confirms a full-name handle", async () => {
+  const { judgeOwnership, contextTerms } = await import("./handles.ts");
+  const ctx = contextTerms(SUBJ, []);
+  const name = { handle: "riveraalex", strength: "name", from: "name" };
+  const o = judgeOwnership(SUBJ, name, { handle: "riveraalex", bio: "CS at Example State University" }, ctx);
+  assert.equal(o.accepted, true);
+});

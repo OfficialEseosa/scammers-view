@@ -1,4 +1,5 @@
-import type { Finding, SourceType } from "@/lib/types";
+import type { Finding, IdentityAnchor, ScanSubject, SourceType } from "@/lib/types";
+import { candidateHandles, contextTerms, judgeOwnership, pickOwned, type HandleCandidate } from "./handles";
 import type { Emit, FindingCollector, RawFinding } from "./findings";
 import type { PageData } from "./pageFetch";
 import type { PageReader } from "./pageReader";
@@ -7,9 +8,11 @@ import { instagramVideos, MAX_VIDEOS, tiktokVideos, videoRisk, type VideoItem } 
 /**
  * Social profiles via Apify actors that read PUBLIC profiles without any
  * login/cookies. Self-only guarantee (enforced here in code): a platform is
- * scraped only for a handle that this scan already tied to the subject with a
- * real anchor (email / github / school) and confidence >= 0.7. Never a handle
- * from the request, never one guessed from the name, never a relative's.
+ * read only for (a) a handle this scan already tied to the subject with a real
+ * anchor (email / github / school) and confidence >= 0.7, or (b) a handle
+ * derived from the subject's own identity (their email, GitHub login, name,
+ * usernames they use elsewhere) whose public profile points back at them; see
+ * ./handles.ts. Never a handle from the request, never a relative's.
  *
  * Actors (Apify Store, checked against their current input schemas):
  *  - Instagram: apify~instagram-profile-scraper  input {usernames}        -> profile item with latestPosts (<=12)
@@ -67,6 +70,7 @@ const LABEL_PATTERNS: Record<Platform, RegExp> = {
   x: /\b(x|twitter)\b/i,
   bluesky: /bluesky|bsky/i,
 };
+const NAMES: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok", x: "X", bluesky: "Bluesky" };
 const handleOk = (p: Platform, v: string) => (p === "bluesky" ? DOMAIN_HANDLE_RE.test(v) : HANDLE_RE.test(v));
 const RESERVED = new Set(["p", "reel", "reels", "explore", "accounts", "stories", "home", "search", "share", "intent", "i", "login", "signup", "about", "help", "privacy", "tag", "discover", "music", "video"]);
 
@@ -96,11 +100,15 @@ export function eligibleHandles(findings: Finding[]): Partial<Record<Platform, {
 }
 
 async function runActor(spec: PlatformSpec, handle: string, token: string, signal: AbortSignal): Promise<unknown[]> {
-  const qs = new URLSearchParams({ timeout: String(ACTOR_TIMEOUT_S), maxTotalChargeUsd: String(spec.maxUsd), maxItems: String(MAX_POSTS), clean: "true" });
+  return runActorInput(spec, spec.input(handle), token, signal, spec.maxUsd, MAX_POSTS);
+}
+
+async function runActorInput(spec: PlatformSpec, input: Record<string, unknown>, token: string, signal: AbortSignal, maxUsd: number, maxItems: number): Promise<unknown[]> {
+  const qs = new URLSearchParams({ timeout: String(ACTOR_TIMEOUT_S), maxTotalChargeUsd: String(maxUsd), maxItems: String(maxItems), clean: "true" });
   const res = await fetch(`${APIFY}/${spec.actor}/run-sync-get-dataset-items?${qs}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(spec.input(handle)),
+    body: JSON.stringify(input),
     signal: AbortSignal.any([signal, AbortSignal.timeout((ACTOR_TIMEOUT_S + 15) * 1000)]),
     cache: "no-store",
   });
@@ -199,20 +207,111 @@ function normalize(p: Platform, handle: string, items: any[]): Normalized | null
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** A handle the scan may read, and why it believes the account is the subject's. */
+interface Resolved {
+  handle: string;
+  anchor: IdentityAnchor;
+  confidence: number;
+  why: string;
+  /** Profile already fetched while checking ownership (saves a second run). */
+  pre?: { normalized: Normalized; items: unknown[] };
+}
+
+const DISCOVERY_USD = 0.04;
+const PLATFORM_RULES: Record<"instagram" | "tiktok" | "x", { maxLen: number; allowDots: boolean }> = {
+  instagram: { maxLen: 30, allowDots: true },
+  tiktok: { maxLen: 24, allowDots: true },
+  x: { maxLen: 15, allowDots: false },
+};
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- actor outputs are untyped JSON */
+function itemHandle(p: Platform, it: any): string {
+  const v = p === "instagram" ? it?.username : p === "tiktok" ? (it?.authorMeta?.name ?? it?.input) : (it?.userName ?? it?.screenName);
+  return String(v ?? "").toLowerCase();
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * No account is linked to the subject yet: try handles built from their own
+ * identity, read each candidate's public profile in one small run, and keep
+ * the one whose profile points back at them (see ./handles.ts).
+ */
+async function discoverHandle(
+  spec: PlatformSpec,
+  subject: ScanSubject,
+  findings: Finding[],
+  token: string,
+  signal: AbortSignal,
+): Promise<Resolved | null> {
+  const p = spec.platform as "instagram" | "tiktok" | "x";
+  const candidates: HandleCandidate[] = candidateHandles(subject, findings, { ...PLATFORM_RULES[p], limit: p === "tiktok" ? 5 : 8 });
+  if (candidates.length === 0) return null;
+  const names = candidates.map((c) => c.handle);
+  const input =
+    p === "instagram"
+      ? { usernames: names, includeAboutSection: false }
+      : p === "tiktok"
+        ? { profiles: names, profileScrapeSections: ["videos"], profileSorting: "latest", resultsPerPage: 1, excludePinnedPosts: false, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSlideshowImages: false, shouldDownloadAvatars: false }
+        : { twitterHandles: names, maxItems: names.length };
+  const items = await runActorInput(spec, input, token, signal, DISCOVERY_USD, names.length * 2);
+  const context = contextTerms(subject, findings);
+  const judged = candidates.flatMap((c) => {
+    const mine = items.filter((it) => itemHandle(p, it) === c.handle);
+    if (mine.length === 0) return [];
+    const normalized = normalize(p, c.handle, mine);
+    if (!normalized) return [];
+    const ownership = judgeOwnership(subject, c, { handle: c.handle, displayName: normalized.displayName, bio: normalized.bio, location: normalized.location, links: normalized.links }, context);
+    return [{ c, normalized, items: mine, ownership }];
+  });
+  const best = pickOwned(judged);
+  if (!best) return null;
+  return {
+    handle: best.c.handle,
+    anchor: best.ownership.anchor,
+    confidence: best.ownership.confidence,
+    why: best.ownership.why,
+    // Instagram's profile item already has the recent posts; TikTok's check run fetched one video only.
+    pre: p === "tiktok" ? undefined : { normalized: best.normalized, items: best.items },
+  };
+}
+
 export async function runSocialSources(
   findings: Finding[],
-  ctx: { collector: FindingCollector; reader: PageReader; emit: Emit; signal: AbortSignal },
+  ctx: { collector: FindingCollector; reader: PageReader; emit: Emit; signal: AbortSignal; subject?: ScanSubject },
 ): Promise<void> {
   const token = process.env.APIFY_TOKEN;
-  const handles = eligibleHandles(findings);
-  const budget = Number(process.env.SCAN_APIFY_MAX_USD) > 0 ? Number(process.env.SCAN_APIFY_MAX_USD) : 0.3;
+  const linked = eligibleHandles(findings);
+  const handles: Partial<Record<Platform, Resolved>> = {};
+  for (const [p, v] of Object.entries(linked) as [Platform, { handle: string; finding: Finding }][]) {
+    handles[p] = { handle: v.handle, anchor: v.finding.anchor, confidence: v.finding.confidence, why: v.finding.label };
+  }
+  const budget = Number(process.env.SCAN_APIFY_MAX_USD) > 0 ? Number(process.env.SCAN_APIFY_MAX_USD) : 0.45;
   let spent = 0;
   const specs: PlatformSpec[] = handles.bluesky ? [BLUESKY] : [];
   if (!token) {
     ctx.emit({ type: "status", message: "Social profiles: not configured" });
   } else {
+    // Platforms with no linked account: look for one under the subject's own usernames and name.
+    const subject = ctx.subject;
+    if (subject) {
+      await Promise.all(
+        SPECS.filter((s) => !handles[s.platform]).map(async (spec) => {
+          if (spent + DISCOVERY_USD > budget) return;
+          spent += DISCOVERY_USD;
+          const agentId = `social_find_${spec.platform}`;
+          ctx.emit({ type: "source_started", sourceType: spec.sourceType, agentId, agentLabel: `Looking for your ${NAMES[spec.platform]}`, query: "usernames built from your name and email" });
+          try {
+            const found = await discoverHandle(spec, subject, findings, token, ctx.signal);
+            if (found) handles[spec.platform] = found;
+          } catch (e) {
+            if (!ctx.signal.aborted) console.warn(`[scan:${agentId}] discovery failed:`, e instanceof Error ? e.message : e);
+          }
+          ctx.emit({ type: "source_done", sourceType: spec.sourceType, agentId, count: handles[spec.platform] ? 1 : 0 });
+        }),
+      );
+    }
     const apify = SPECS.filter((s) => handles[s.platform]);
-    if (apify.length === 0) ctx.emit({ type: "status", message: "Social profiles: no Instagram, TikTok or X account is confirmed as yours yet, so none were read" });
+    if (apify.length === 0) ctx.emit({ type: "status", message: "Social profiles: no Instagram, TikTok or X account could be tied to you, so none were read" });
     specs.push(...apify);
   }
   if (specs.length === 0) return;
@@ -223,24 +322,26 @@ export async function runSocialSources(
         if (spent + spec.maxUsd > budget) return; // per-scan Apify cost ceiling
         spent += spec.maxUsd;
       }
-      const { handle, finding: anchorFinding } = handles[spec.platform]!;
+      const resolved = handles[spec.platform]!;
+      const { handle } = resolved;
       const agentId = `social_${spec.platform}`;
       ctx.emit({ type: "source_started", sourceType: spec.sourceType, agentId, agentLabel: spec.label, query: `@${handle}` });
       let count = 0;
       try {
-        const items = spec.platform === "bluesky" ? [] : await runActor(spec, handle, token!, ctx.signal);
-        const n = spec.platform === "bluesky" ? await fetchBluesky(handle, ctx.signal) : normalize(spec.platform, handle, items);
+        const items = spec.platform === "bluesky" ? [] : (resolved.pre?.items ?? (await runActor(spec, handle, token!, ctx.signal)));
+        const n = spec.platform === "bluesky" ? await fetchBluesky(handle, ctx.signal) : (resolved.pre?.normalized ?? normalize(spec.platform, handle, items));
         if (!n) {
           ctx.emit({ type: "status", message: `${spec.label}: nothing public returned` });
         } else if (n.private) {
           ctx.emit({ type: "status", message: `Your ${({ x: "X", tiktok: "TikTok", instagram: "Instagram", bluesky: "Bluesky" } as const)[spec.platform]} account is private, so its posts are not visible to strangers` });
         } else {
-          const anchor = anchorFinding.anchor;
-          const base = { sourceType: spec.sourceType, sourceUrl: n.profileUrl, sourceTitle: `@${handle}`, anchor, confidence: Math.min(0.95, anchorFinding.confidence) };
+          const anchor = resolved.anchor;
+          const base = { sourceType: spec.sourceType, sourceUrl: n.profileUrl, sourceTitle: `@${handle}`, anchor, confidence: Math.min(0.95, resolved.confidence) };
           const pending: Promise<void>[] = [];
           const add = (f: Omit<RawFinding, "sourceType" | "sourceUrl" | "sourceTitle" | "anchor" | "confidence"> & Partial<RawFinding>) => {
             pending.push(ctx.collector.add({ ...base, ...f }, agentId).then((r) => { if (r.ok) count++; }));
           };
+          add({ category: "handle", label: `Your ${NAMES[spec.platform]} account`, value: n.profileUrl, snippet: resolved.why, riskWeight: 4 });
           if (n.avatar) add({ category: "photo", label: `${spec.platform} profile picture`, value: `Profile picture on @${handle}`, imageUrl: n.avatar, riskWeight: 3 });
           if (n.displayName) add({ category: "other", label: `Display name on ${spec.platform}`, value: n.displayName, riskWeight: 2 });
           if (n.bio) add({ category: "other", label: `${spec.platform} bio`, value: n.bio, riskWeight: 4 });
@@ -284,7 +385,7 @@ export async function runSocialSources(
             const doc: PageData = {
               url: n.profileUrl,
               title: `${spec.platform} @${handle} (public profile and recent posts)`,
-              description: `This is the subject's own ${spec.platform} account (confirmed: ${anchorFinding.label}). Use anchor "${anchor}".`,
+              description: `This is the subject's own ${spec.platform} account (confirmed: ${resolved.why}). Use anchor "${anchor}".`,
               text: [`BIO: ${n.bio ?? ""}`, `LINKS: ${n.links.join(", ")}`, `RECENT PUBLIC POST CAPTIONS:\n${captions.join("\n")}`].join("\n\n").slice(0, 14000),
               images: [],
               links: [],

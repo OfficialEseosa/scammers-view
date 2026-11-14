@@ -72,7 +72,7 @@ export function Results() {
       <Panel id="fixes" active={tab} keep={visited}>
         <div className="mx-auto w-full max-w-[96rem] xl:grid xl:grid-cols-[minmax(0,46rem)_minmax(0,1fr)] xl:gap-8 xl:px-6">
           <div className="mx-auto w-full max-w-3xl min-w-0 sm:px-6 xl:mx-0 xl:px-0">
-            <h1 className="sr-only">Lock it down</h1>
+            <h1 className="sr-only">Break the chain</h1>
             <RoomJoin findings={findings} />
             <FixListSlot findings={findings} chains={scan.chains} score={scan.score} masked={masked} onRemovedChange={s.setRemovedFindingIds} />
             <FamilyNudge findings={findings} onOpen={() => go("family")} />

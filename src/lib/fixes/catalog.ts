@@ -141,6 +141,50 @@ const PLATFORMS: Record<string, Platform> = {
   },
 };
 
+/** Sites where the person controls their own page, with the setting that hides it. */
+const OWN_PROFILE_SITES: {
+  host: string;
+  name: string;
+  /** What someone needs to look you up there. */
+  key: string;
+  title: string;
+  effort: Effort;
+  link: string;
+  linkConfirmed: boolean;
+  steps: string[];
+}[] = [
+  {
+    host: "gravatar.com",
+    name: "Gravatar",
+    key: "email address",
+    title: "Hide your Gravatar photo and profile",
+    effort: "5 min",
+    link: "https://gravatar.com/profile",
+    linkConfirmed: false,
+    steps: [
+      "Sign in at gravatar.com with the email the scan found.",
+      "Open your profile settings.",
+      "Turn on the options to hide your public avatar and make your profile private.",
+      "Turn on the option that asks search engines not to index it.",
+    ],
+  },
+  {
+    host: "bsky.app",
+    name: "Bluesky",
+    key: "handle",
+    title: "Hide your Bluesky profile from logged-out visitors",
+    effort: "1 min",
+    link: "https://bsky.app/settings/privacy-and-security",
+    linkConfirmed: false,
+    steps: [
+      "Open Bluesky, then Settings.",
+      "Open Privacy and security.",
+      "Open Logged-out visibility and turn it on.",
+      "Remove personal details from your bio and display name.",
+    ],
+  },
+];
+
 function hostOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
@@ -355,16 +399,30 @@ export function buildCandidates(findings: Finding[]): FixTemplate[] {
     byHost.set(h, [...(byHost.get(h) ?? []), f]);
   }
   for (const [host, fs] of byHost) {
+    const own = OWN_PROFILE_SITES.find((o) => host === o.host || host.endsWith(`.${o.host}`));
+    if (own) {
+      out.push({
+        id: `fix:takedown:${slug(host)}`,
+        kind: "takedown",
+        title: own.title,
+        why: `${own.name} shows ${labelsOf(fs)} to anyone who has your ${own.key}.`,
+        steps: own.steps,
+        link: own.link,
+        linkConfirmed: own.linkConfirmed,
+        removesFindingIds: fs.map((f) => f.id),
+        effort: own.effort,
+      });
+      continue;
+    }
     out.push({
       id: `fix:takedown:${slug(host)}`,
       kind: "takedown",
-      title: `Ask ${host} to remove or hide it`,
+      title: `Take ${labelsOf(fs)} off ${host}`,
       why: `${host} publishes ${labelsOf(fs)} about you.`,
       steps: [
-        "Open the page the scan found and look for an Edit, Hide or Remove option if it's your profile.",
-        "If there isn't one, find the site's contact or Privacy link and send a short removal request with the page address.",
-        "Say exactly which details to remove and that you are the person they describe.",
-        "Re-check in two weeks, and search your name to see if it was copied elsewhere.",
+        "If this is your own page, sign in and edit or delete the details.",
+        "If it isn't, use the site's Contact or Privacy link and send the page address with the exact details to remove.",
+        "Check again in two weeks.",
       ],
       link: fs[0].sourceUrl,
       linkConfirmed: true,

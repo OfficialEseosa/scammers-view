@@ -82,10 +82,12 @@ export function roundOnePlans(s: ScanSubject): AgentPlan[] {
       id: "personal",
       label: "Personal details: birthday, hometown, pets",
       sourceType: "web",
+      // One folded query (live runs 2026-11-14: the three separate ones came back empty in every run).
       queries: [
-        { q: `${name} birthday OR "born in" OR "years old" OR "happy birthday"`, hint: "birthday, birth year or age hints" },
-        { q: `${name} hometown OR "grew up in" OR "high school" OR "class of"`, hint: "hometown, high school, graduation year" },
-        { q: `${name} dog OR cat OR puppy OR pet`, hint: "pets' names (classic security-question answers)" },
+        {
+          q: `${name} (birthday OR "born in" OR "years old" OR hometown OR "grew up in" OR "high school" OR "class of" OR dog OR cat OR pet)`,
+          hint: "birthday or age hints, hometown, high school and graduation year, pets' names (classic security-question answers)",
+        },
       ],
     },
     {
@@ -127,11 +129,14 @@ export function followUpPlans(s: ScanSubject, confirmed: Finding[], extra: { pro
     if (f.category === "employer") orgs.add(f.value);
   }
   const plans: AgentPlan[] = [];
-  const hq = [...handles].slice(0, 3).map((h) => ({ q: `${q(h)}`, hint: `other sites where the username "${h}" is used by the subject` }));
+  // Folded into one OR query (separate per-handle searches were empty in every live run).
+  const hl = [...handles].slice(0, 3);
+  const hq = hl.length ? [{ q: hl.map(q).join(" OR "), hint: `other sites where the username(s) ${hl.join(", ")} are used by the subject` }] : [];
   if (hq.length) plans.push({ id: "follow_handles", label: "Follow-up: username reuse", sourceType: "other", queries: hq });
   const eq = [...emails].slice(0, 2).map((e) => ({ q: q(e), hint: "pages exposing this address" }));
   if (eq.length) plans.push({ id: "follow_emails", label: "Follow-up: other email addresses", sourceType: "web", queries: eq });
-  const pq = extra.projects.slice(0, 3).map((p) => ({ q: `${q(p)} ${s.githubLogin ? q(s.githubLogin) : name}`, hint: `where the project "${p}" appears: Devpost, hackathon winner lists, demos, package registries (npm/PyPI)` }));
+  const pl = extra.projects.slice(0, 3);
+  const pq = pl.length ? [{ q: `(${pl.map(q).join(" OR ")}) ${s.githubLogin ? q(s.githubLogin) : name}`, hint: `where the projects ${pl.join(", ")} appear: Devpost, hackathon winner lists, demos, package registries (npm/PyPI)` }] : [];
   if (pq.length) plans.push({ id: "follow_projects", label: "Follow-up: projects and hackathons", sourceType: "personal_site", queries: pq });
   const oq = [...orgs].slice(0, 2).map((o) => ({ q: `${name} ${q(o)}`, hint: `team, roster or news pages at ${o} naming the subject: their role/title, team, manager's or teammates' names, schedule, photos` }));
   if (oq.length) plans.push({ id: "follow_orgs", label: "Follow-up: employers and organizations", sourceType: "school", queries: oq });
@@ -141,8 +146,7 @@ export function followUpPlans(s: ScanSubject, confirmed: Finding[], extra: { pro
     label: "Follow-up: Devpost, package registries, Kaggle",
     sourceType: "web",
     queries: [
-      { q: `${ident} (site:devpost.com OR site:npmjs.com OR site:pypi.org OR site:kaggle.com OR site:huggingface.co)`, hint: "profiles and projects under the same username on developer sites" },
-      { q: `${name} site:devpost.com`, hint: "Devpost profile and hackathon submissions (team members, schools, photos)" },
+      { q: `${ident} (site:devpost.com OR site:npmjs.com OR site:pypi.org OR site:kaggle.com OR site:huggingface.co)`, hint: "profiles and projects under the same username on developer sites (Devpost team members, schools, photos)" },
     ],
   });
   plans.push({
