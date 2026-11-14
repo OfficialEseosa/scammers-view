@@ -51,3 +51,13 @@ export const FixListSlot = dynamic(() => import("@/features/fixes/FixList").then
   ssr: false,
   loading: () => <Skeleton className="h-96" label="Ranking your fixes" />,
 });
+
+export const PhotoContextSlot = dynamic(() => import("@/features/photo-context").then((m) => m.PhotoContext), {
+  ssr: false,
+  loading: () => <Skeleton className="h-48" label="Loading photo reading" />,
+});
+
+export const VideoContextSlot = dynamic(() => import("@/features/photo-context").then((m) => m.VideoContext), {
+  ssr: false,
+  loading: () => <Skeleton className="h-48" label="Loading video reading" />,
+});

@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { generateJson, type LlmUsage } from "@/lib/llm/gemini";
 import { AttackChain, ExposureScore, type Finding } from "@/lib/types";
 
 /**
@@ -46,20 +45,22 @@ Rules: reason only over the provided findings; do not invent facts. Keep it at t
 export interface ReasoningResult {
   score: ExposureScore;
   chains: AttackChain[];
-  usage: { input: number; output: number };
+  usage: { input: number; output: number; thought: number };
   merged: number;
 }
 
+type Thinking = "low" | "medium" | "high";
+
 export async function runReasoning(
   findings: Finding[],
-  opts: { client: Anthropic; model: string; signal: AbortSignal },
+  opts: { model: string; signal: AbortSignal; thinking?: Thinking; onUsage?: (u: LlmUsage) => void },
 ): Promise<ReasoningResult> {
   const ids = new Set(findings.map((f) => f.id));
   if (findings.length === 0) {
     return {
       score: { score: 0, topFindingIds: [], summary: "We found almost nothing about you on the public web, which leaves a scammer very little to work with." },
       chains: [],
-      usage: { input: 0, output: 0 },
+      usage: { input: 0, output: 0, thought: 0 },
       merged: 0,
     };
   }
@@ -75,22 +76,23 @@ export async function runReasoning(
     sourceCount: f.sources?.length ?? 1,
   }));
 
-  const res = await opts.client.beta.messages.parse(
-    {
-      model: opts.model,
-      max_tokens: 16000,
-      system: SYSTEM,
-      output_config: { effort: "medium", format: betaZodOutputFormat(ReasoningOutput) },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      messages: [{ role: "user", content: `Findings (JSON):\n${JSON.stringify(compact, null, 1)}` }],
+  const usage = { input: 0, output: 0, thought: 0 };
+  // Thinking model: it reasons privately over the findings before writing the chains.
+  const out = await generateJson({
+    model: opts.model,
+    system: SYSTEM,
+    schema: ReasoningOutput,
+    thinking: opts.thinking ?? "medium",
+    maxOutputTokens: 16000,
+    signal: opts.signal,
+    prompt: `Findings (JSON):\n${JSON.stringify(compact, null, 1)}`,
+    onUsage: (u) => {
+      usage.input += u.inputTokens;
+      usage.output += u.outputTokens;
+      usage.thought += u.thoughtTokens;
+      opts.onUsage?.(u);
     },
-    { signal: opts.signal },
-  );
-  if (res.stop_reason === "refusal" || !res.parsed_output) {
-    throw new Error(`reasoning produced no output (stop_reason=${res.stop_reason})`);
-  }
-  const out = res.parsed_output;
+  });
   // Near-duplicate merge: map every duplicate id to its kept id.
   const canon = new Map<string, string>();
   let merged = 0;
@@ -132,7 +134,7 @@ export async function runReasoning(
   return {
     score,
     chains,
-    usage: { input: res.usage.input_tokens, output: res.usage.output_tokens },
+    usage,
     merged,
   };
 }

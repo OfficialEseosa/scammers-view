@@ -1,4 +1,4 @@
-/** Tiny semaphore so a scan's many parallel Claude calls don't trip rate limits. */
+/** Tiny semaphore so a scan's many parallel Gemini calls don't trip rate limits. */
 export class Limiter {
   private active = 0;
   private queue: (() => void)[] = [];

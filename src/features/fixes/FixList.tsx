@@ -459,7 +459,7 @@ function OptOut({ fix, findings, masked }: { fix: Fix; findings: Finding[]; mask
             </button>
           </div>
           <p className="mt-2 text-sm text-muted">
-            {source === "claude" ? "Drafted by Claude" : "From a template"}. Add the broker&apos;s privacy address.
+            {source === "gemini" ? "Drafted by Gemini" : "From a template"}. Add the broker&apos;s privacy address.
             {masked && " Masked on screen only."}
           </p>
         </>

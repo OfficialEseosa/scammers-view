@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { proxiedUrl } from "@/lib/face/image";
 import { clearFaceData } from "@/lib/face/store";
 import type { FaceReference, MatchResult } from "@/lib/face/types";
@@ -16,6 +16,8 @@ export interface PhotoMatchesProps {
   clearOnUnmount?: boolean;
   /** Show match distances (dev/lab only). */
   showDistances?: boolean;
+  /** Receives the photos matched to the user so far (for the Gemini photo reading under them). */
+  onMatchedChange?: (matched: Finding[]) => void;
   className?: string;
 }
 
@@ -116,6 +118,7 @@ export function PhotoMatches({
   threshold,
   clearOnUnmount = true,
   showDistances = false,
+  onMatchedChange,
   className,
 }: PhotoMatchesProps) {
   const stored = useFaceReference();
@@ -126,6 +129,16 @@ export function PhotoMatches({
     if (!clearOnUnmount) return;
     return () => clearFaceData();
   }, [clearOnUnmount]);
+
+  const matchedKey = matched.map((m) => m.finding.id).join("|");
+  const onMatchedRef = useRef(onMatchedChange);
+  useEffect(() => {
+    onMatchedRef.current = onMatchedChange;
+  });
+  useEffect(() => {
+    onMatchedRef.current?.(matched.map((m) => m.finding));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the matched ids
+  }, [matchedKey]);
 
   const failed = notMatched.filter((i) => i.result?.error);
   const checked = notMatched.filter((i) => !i.result?.error);

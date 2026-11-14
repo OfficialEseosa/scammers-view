@@ -74,7 +74,14 @@ export type ExposureScore = z.infer<typeof ExposureScore>;
 
 /** Events the server streams over SSE during a scan. */
 export const ScanEvent = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("status"), message: z.string() }),
+  z.object({
+    type: z.literal("status"),
+    message: z.string(),
+    /** Optional: pipeline stage this status describes (search, pages, dedupe, reasoning). */
+    stage: z.string().optional(),
+    /** Optional: model ID behind that stage, e.g. "gemini-3.8-flash". */
+    model: z.string().optional(),
+  }),
   z.object({ type: z.literal("source_started"), sourceType: SourceType, query: z.string().optional(), agentId: z.string().optional(), agentLabel: z.string().optional() }),
   z.object({ type: z.literal("source_done"), sourceType: SourceType, count: z.number(), agentId: z.string().optional() }),
   z.object({ type: z.literal("finding"), finding: Finding }),

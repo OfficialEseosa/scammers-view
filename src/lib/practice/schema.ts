@@ -80,7 +80,7 @@ export const PracticeMessage = z.object({
   label: z.literal(PRACTICE_LABEL),
   kind: PracticeKind,
   scenario: PracticeScenario,
-  provider: z.enum(["claude", "gemini"]),
+  provider: z.literal("gemini"),
   /** The recipient's name as used in the message (the signed-in person). Lets the UI mask it. */
   addressedTo: z.string(),
   from: z.object({ name: z.string(), address: z.string() }),

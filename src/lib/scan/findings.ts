@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { generateJson, MODELS, type LlmUsage } from "@/lib/llm/gemini";
 import {
   Finding,
   FindingCategory,
@@ -46,10 +45,23 @@ const MIN_UNCONFIRMED_CONFIDENCE = 0.35;
 const MIN_CONFIDENCE = 0.2;
 const CAP: Partial<Record<string, number>> = { interest: 7, other: 6 };
 const SEMANTIC = new Set(["interest", "other", "school", "employer", "location", "schedule", "birthday", "pet", "relative"]);
-const LOOSE = new Set(["interest", "other", "handle"]);
+/**
+ * Categories models assign inconsistently to the same fact (a club role as
+ * "school" or "interest", a teammate as "other" or "employer", an event as
+ * "schedule" or "interest"). The judge also compares against these.
+ */
+const RELATED: Record<string, string[]> = {
+  school: ["interest", "other", "employer"],
+  employer: ["other", "interest", "school"],
+  interest: ["school", "employer", "schedule", "other", "handle"],
+  schedule: ["interest", "location", "other"],
+  location: ["schedule"],
+  other: ["interest", "employer", "school", "handle", "relative", "schedule"],
+  handle: ["other", "interest"],
+  relative: ["other"],
+};
 /** Aggregate restatements ("linked social accounts") are padding: the individual handles carry the fact. */
 const AGGREGATE_LABEL = /linked (social )?(accounts|platforms|profiles)|social (media )?(accounts|presence)|online presence|hashtag/i;
-const JUDGE_MODEL = () => process.env.ANTHROPIC_DEDUPE_MODEL || "claude-haiku-5-5";
 const JUDGE_WAIT_MS = 8000;
 const JUDGE_BATCH_MS = 120;
 
@@ -79,10 +91,14 @@ class DuplicateJudge {
   private timer: ReturnType<typeof setTimeout> | null = null;
   calls = 0;
   timeouts = 0;
-  constructor(private client: Anthropic | null, private signal: AbortSignal) {}
+  constructor(
+    private enabled: boolean,
+    private signal: AbortSignal,
+    private onUsage?: (u: LlmUsage) => void,
+  ) {}
 
   ask(cand: JudgeReq["cand"], options: Finding[]): Promise<string | null | "timeout"> {
-    if (!this.client || options.length === 0) return Promise.resolve("timeout");
+    if (!this.enabled || options.length === 0) return Promise.resolve("timeout");
     return new Promise((resolve) => {
       const t = setTimeout(() => {
         this.timeouts++;
@@ -96,24 +112,24 @@ class DuplicateJudge {
   private async flush() {
     this.timer = null;
     const batch = this.queue.splice(0);
-    if (!batch.length || !this.client) return;
+    if (!batch.length || !this.enabled) return;
     this.calls++;
     const prompt = batch
       .map((r, i) => `#${i} NEW [${r.cand.category}] ${r.cand.label}: ${r.cand.value}\n` + r.options.map((o) => `   ${o.id}: ${o.label}: ${o.value}`).join("\n"))
       .join("\n\n");
     try {
-      const res = await this.client.messages.parse(
-        {
-          model: JUDGE_MODEL(),
-          max_tokens: 2000,
-          output_config: { effort: "low", format: zodOutputFormat(JudgeOut) },
-          system:
-            'You de-duplicate facts about one person. For each NEW item, decide whether it states the SAME fact as one of the listed existing items (same school/employer/place/handle/interest, just worded, abbreviated or formatted differently, or one is a more specific version of the other). Examples of duplicates: "Hackathon: X" and "Won X hackathon"; "Project: Foo" and "Current project Foo"; "Deans List" and "Presidents/Deans List 2024"; a handle and a bio line that only repeats it. Different facts are NOT duplicates (two different schools, a city vs. a different city, two different projects or interests). Answer every index; duplicateOf is the existing id, or "" if it is new.',
-          messages: [{ role: "user", content: prompt }],
-        },
-        { signal: AbortSignal.any([this.signal, AbortSignal.timeout(JUDGE_WAIT_MS)]) },
-      );
-      const answers = new Map((res.parsed_output?.answers ?? []).map((a) => [a.index, a.duplicateOf]));
+      const res = await generateJson({
+        model: MODELS.lite,
+        schema: JudgeOut,
+        thinking: "minimal",
+        maxOutputTokens: 2000,
+        signal: AbortSignal.any([this.signal, AbortSignal.timeout(JUDGE_WAIT_MS)]),
+        onUsage: this.onUsage,
+        prompt,
+        system:
+            'You de-duplicate facts about one person. For each NEW item, decide whether it states the SAME fact as one of the listed existing items (same school/employer/place/handle/interest, just worded, abbreviated or formatted differently, or one is a more specific version of the other). Examples of duplicates: "Hackathon: X" and "Won X hackathon"; "Project: Foo" and "Current project Foo"; "Deans List" and "Presidents/Deans List 2024"; a handle and a bio line that only repeats it. Existing items may be filed under a different category than the NEW one (a club role as school or interest, a teammate as other or employer, an event as schedule or interest, a venue as location or schedule): judge by meaning, not category. The same person named in two items (e.g. as teammate and as co-organizer) is a duplicate when the NEW item adds nothing beyond that person. Different facts are NOT duplicates (two different schools, a city vs. a different city, two different projects or interests). Answer every index; duplicateOf is the existing id, or "" if it is new.',
+      });
+      const answers = new Map(res.answers.map((a) => [a.index, a.duplicateOf]));
       batch.forEach((r, i) => {
         const id = answers.get(i) ?? "";
         r.resolve(r.options.some((o) => o.id === id) ? id : null);
@@ -142,8 +158,12 @@ export class FindingCollector {
   readonly agentOf = new Map<string, string>();
   stats = { emitted: 0, mergedExact: 0, mergedRule: 0, mergedModel: 0, droppedPadding: 0 };
 
-  constructor(private emit: Emit, opts: { client?: Anthropic; signal?: AbortSignal } = {}) {
-    this.judge = new DuplicateJudge(opts.client ?? null, opts.signal ?? new AbortController().signal);
+  /** `judge: true` enables the batched Gemini duplicate check (MODELS.lite); rules-only otherwise. */
+  constructor(
+    private emit: Emit,
+    opts: { judge?: boolean; signal?: AbortSignal; onUsage?: (u: LlmUsage) => void } = {},
+  ) {
+    this.judge = new DuplicateJudge(Boolean(opts.judge), opts.signal ?? new AbortController().signal, opts.onUsage);
   }
 
   /** Final merged state (what reasoning and recordings use). */
@@ -168,11 +188,103 @@ export class FindingCollector {
     const raw = parsed.data;
     const pre = this.precheck(raw);
     if (pre) return Promise.resolve({ ok: false, reason: pre });
-    // Serialize per category so concurrent candidates see each other's decisions.
+    // Serialize so concurrent candidates see each other's decisions: one lane for
+    // the related free-text categories (they are judged against each other), one per other category.
+    if (RELATED[raw.category]) return this.enqueueRelated(raw, agentId);
     const prev = this.locks.get(raw.category) ?? Promise.resolve();
     const next = prev.then(() => this.decide(raw, agentId));
     this.locks.set(raw.category, next.catch(() => undefined));
     return next;
+  }
+
+  // ---- related-categories lane: batched so one judge call covers a whole burst
+  private relQueue: { raw: RawFinding; agentId: string; resolve: (r: AddResult) => void }[] = [];
+  private relRunning = false;
+
+  private enqueueRelated(raw: RawFinding, agentId: string): Promise<AddResult> {
+    return new Promise((resolve) => {
+      this.relQueue.push({ raw, agentId, resolve });
+      if (!this.relRunning) void this.runRelated();
+    });
+  }
+
+  private async runRelated() {
+    this.relRunning = true;
+    try {
+      // Let the rest of the same extraction arrive so it is judged in one call.
+      await new Promise((r) => setTimeout(r, 30));
+      while (this.relQueue.length) {
+        const batch = this.relQueue.splice(0);
+        const pending: { raw: RawFinding; agentId: string; resolve: (r: AddResult) => void; ambiguous: Finding[] }[] = [];
+        for (const it of batch) {
+          const r = this.ruleStage(it.raw);
+          if ("ok" in r) it.resolve(r);
+          else pending.push({ ...it, ambiguous: r.ambiguous });
+        }
+        // Earlier candidates of this burst are options too ("n0", "n1", ...).
+        const pseudo = pending.map((p, i) => ({ id: `n${i}`, category: p.raw.category, label: p.raw.label, value: p.raw.value }) as Finding);
+        const answers = await Promise.all(
+          pending.map((p, i) => {
+            const opts = [...p.ambiguous.slice(0, 24), ...pseudo.slice(0, i)];
+            return opts.length ? this.judge.ask({ category: p.raw.category, label: p.raw.label, value: p.raw.value }, opts) : Promise.resolve(null);
+          }),
+        );
+        const accepted: (Finding | undefined)[] = [];
+        pending.forEach((p, i) => {
+          const ans = answers[i];
+          let target: Finding | undefined;
+          if (ans === "timeout") {
+            const t = tokens(p.raw.value);
+            target = [...p.ambiguous, ...accepted.filter((x): x is Finding => Boolean(x))].find((f) => jaccard(t, tokens(f.value)) >= 0.5);
+          } else if (ans && /^n\d+$/.test(ans)) {
+            target = accepted[Number(ans.slice(1))];
+          } else if (ans) {
+            target = p.ambiguous.find((f) => f.id === ans);
+          }
+          if (target) {
+            this.stats.mergedModel++;
+            this.merge(target, p.raw);
+            this.byKey.set(exactKey(p.raw), target);
+            p.resolve({ ok: false, reason: `duplicate of ${target.id} (merged)`, mergedInto: target.id });
+            return;
+          }
+          // A same-burst exact/rule duplicate of something accepted a moment ago.
+          const again = this.ruleStage(p.raw);
+          if ("ok" in again) return p.resolve(again);
+          const r = this.accept(p.raw, p.agentId);
+          accepted[i] = r.ok ? r.finding : undefined;
+          p.resolve(r);
+        });
+      }
+    } finally {
+      this.relRunning = false;
+    }
+  }
+
+  /** Exact + rule checks. Returns a merge result, or the findings the judge must compare against. */
+  private ruleStage(raw: RawFinding): AddResult | { ambiguous: Finding[] } {
+    const key = exactKey(raw);
+    const exact = this.byKey.get(key);
+    if (exact) {
+      this.stats.mergedExact++;
+      this.merge(exact, raw);
+      return { ok: false, reason: `duplicate of ${exact.id} (merged)`, mergedInto: exact.id };
+    }
+    const ambiguous: Finding[] = [];
+    for (const f of this.all) {
+      if (f.category !== raw.category) continue;
+      const v = classify(raw, f);
+      if (v === "dup") {
+        this.stats.mergedRule++;
+        this.merge(f, raw);
+        this.byKey.set(key, f);
+        return { ok: false, reason: `duplicate of ${f.id} (merged)`, mergedInto: f.id };
+      }
+      if (v === "ambiguous" || SEMANTIC.has(raw.category)) ambiguous.push(f);
+    }
+    const related = RELATED[raw.category];
+    if (related) for (const f of this.all) if (related.includes(f.category)) ambiguous.push(f);
+    return { ambiguous };
   }
 
   private precheck(raw: RawFinding): string | null {
@@ -221,12 +333,13 @@ export class FindingCollector {
       // so every same-category item goes to the judge, not just the rule-ambiguous ones.
       if (v === "ambiguous" || SEMANTIC.has(raw.category)) ambiguous.push(f);
     }
-    // Loose categories also restate each other ("Linked social accounts" as other vs handle).
-    if (LOOSE.has(raw.category)) {
-      for (const f of this.all) if (f.category !== raw.category && LOOSE.has(f.category)) ambiguous.push(f);
+    // Related categories restate each other (a club role as school vs interest, a teammate as other vs employer).
+    const related = RELATED[raw.category];
+    if (related) {
+      for (const f of this.all) if (related.includes(f.category)) ambiguous.push(f);
     }
     if (ambiguous.length) {
-      const ans = await this.judge.ask({ category: raw.category, label: raw.label, value: raw.value }, ambiguous.slice(0, 15));
+      const ans = await this.judge.ask({ category: raw.category, label: raw.label, value: raw.value }, ambiguous.slice(0, 24));
       let target: Finding | undefined;
       if (ans === "timeout") {
         // No answer in time: merge into a close match rather than emit a likely duplicate.
@@ -242,7 +355,12 @@ export class FindingCollector {
         return { ok: false, reason: `duplicate of ${target.id} (merged)`, mergedInto: target.id };
       }
     }
+    return this.accept(raw, agentId);
+  }
 
+  /** Emit a new finding (after de-duplication). */
+  private accept(raw: RawFinding, agentId: string): AddResult {
+    const key = exactKey(raw);
     const cap = CAP[raw.category];
     if (cap !== undefined && (this.catCount.get(raw.category) ?? 0) >= cap && raw.riskWeight < 6) {
       this.stats.droppedPadding++;

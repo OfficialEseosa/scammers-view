@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { LlmRefusalError, MODELS, generateJson, isLlmConfigured } from "@/lib/llm/gemini";
 import type { Finding, ScanSubject } from "@/lib/types";
 import { fallbackItems } from "./fallback";
 import { fictionalAddress, locateQuote, sanitize } from "./sanitize";
@@ -71,31 +70,25 @@ ${facts.length === 0 ? "No facts are available: write the scams without personal
 
 /* --------------------------------- provider --------------------------------- */
 
-let client: Anthropic | null = null;
-
 type Attempt = { ok: true; draft: Draft } | { ok: false; detail: string };
 
-async function askClaude(subject: ScanSubject, findings: Finding[]): Promise<Attempt> {
-  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, detail: "no ANTHROPIC_API_KEY" };
-  client ??= new Anthropic({ timeout: 90_000, maxRetries: 1 });
-  const model = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+async function askGemini(subject: ScanSubject, findings: Finding[]): Promise<Attempt> {
+  if (!isLlmConfigured()) return { ok: false, detail: "no GEMINI_API_KEY" };
   try {
-    const res = await client.messages.parse({
-      model,
-      max_tokens: 8000,
+    const draft = await generateJson({
+      // Fast model, low thinking (bench 2026-11-14); override with GEMINI_MODEL_QUIZ.
+      model: process.env.GEMINI_MODEL_QUIZ?.trim() || MODELS.fast,
+      thinking: "low",
       system: SYSTEM_PROMPT,
-      output_config: { effort: "low", format: zodOutputFormat(Draft) },
-      messages: [{ role: "user", content: buildUserPrompt(subject, findings) }],
+      prompt: buildUserPrompt(subject, findings),
+      schema: Draft,
+      signal: AbortSignal.timeout(50_000),
+      timeoutMs: 50_000,
     });
-    if (res.stop_reason === "refusal") {
-      return { ok: false, detail: `declined (${res.stop_details?.category ?? "unspecified"})` };
-    }
-    if (res.stop_reason === "max_tokens") return { ok: false, detail: "hit max_tokens" };
-    if (!res.parsed_output) return { ok: false, detail: "no parsed output" };
-    return { ok: true, draft: res.parsed_output };
+    return { ok: true, draft };
   } catch (err) {
-    if (err instanceof Anthropic.APIError) return { ok: false, detail: `Anthropic API ${err.status ?? "?"}` };
-    return { ok: false, detail: err instanceof Error ? err.message.slice(0, 120) : "unknown error" };
+    if (err instanceof LlmRefusalError) return { ok: false, detail: `declined (${err.reason.slice(0, 60)})` };
+    return { ok: false, detail: err instanceof Error ? `${err.name}: ${err.message}`.slice(0, 120) : "unknown error" };
   }
 }
 
@@ -162,7 +155,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export type QuizAttempt = { source: "claude" | "fallback"; detail?: string };
+export type QuizAttempt = { source: "gemini" | "fallback"; detail?: string };
 
 export async function generateQuiz(args: {
   subject: ScanSubject;
@@ -178,7 +171,7 @@ export async function generateQuiz(args: {
   let legit: Item[] = [];
   let detail: string | undefined;
 
-  const got = await askClaude(subject, findings);
+  const got = await askGemini(subject, findings);
   if (got.ok) {
     const finals = got.draft.items.map((d) => finalize(d, ids)).filter((x): x is Item => x !== null);
     scams = finals.filter((i) => i.isScam).slice(0, 3);
@@ -194,7 +187,7 @@ export async function generateQuiz(args: {
   const items = shuffle([...scams, ...legit]).map((it, i) => ({ ...it, id: `q${i + 1}` }));
   const response = QuizResponse.parse({
     practice: true as const,
-    source: fromModel > 0 ? ("claude" as const) : ("fallback" as const),
+    source: fromModel > 0 ? ("gemini" as const) : ("fallback" as const),
     recipient: subject.name,
     items,
   });

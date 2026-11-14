@@ -1,8 +1,11 @@
 import { connection } from "next/server";
 import { getScanSubject } from "@/lib/auth/subject";
+import { isLlmConfigured, LlmBillingError, LlmNotConfiguredError } from "@/lib/llm/gemini";
 import type { ScanEvent } from "@/lib/types";
 import { runScan } from "@/lib/scan/orchestrator";
 import { Recorder, replay } from "@/lib/scan/recording";
+
+const GEMINI_NOT_CONFIGURED = "Gemini is not configured: set GEMINI_API_KEY on the server to run a live scan.";
 
 // Scans run several agents in parallel and can take a few minutes.
 export const maxDuration = 300;
@@ -46,23 +49,34 @@ export async function GET(request: Request) {
       const heartbeat = setInterval(() => write(": keepalive\n\n"), 15_000);
       write(": connected\n\n");
 
+      let ran = false;
       (async () => {
         try {
           if (replaySpec) {
+            // Replay needs no model key.
             await replay(replaySpec, emit, abort.signal);
+          } else if (!isLlmConfigured()) {
+            emit({ type: "error", message: GEMINI_NOT_CONFIGURED });
+            return;
           } else {
+            ran = true;
             const final = await runScan(subject, emit, abort.signal);
             if (final) recorder?.setFinal(final);
           }
           emit({ type: "done" });
         } catch (e) {
-          if (!abort.signal.aborted) {
+          if (e instanceof LlmNotConfiguredError) {
+            emit({ type: "error", message: GEMINI_NOT_CONFIGURED });
+          } else if (e instanceof LlmBillingError) {
+            console.error("[scan] Gemini billing error:", e.status);
+            emit({ type: "error", message: "Gemini billing problem: the project's prepaid credits are used up or billing is off. Top up in AI Studio, then try again." });
+          } else if (!abort.signal.aborted) {
             console.error("[scan] failed:", e instanceof Error ? e.message : e);
             emit({ type: "error", message: "The scan failed. Please try again." });
           }
         } finally {
           clearInterval(heartbeat);
-          if (recorder) {
+          if (recorder && ran) {
             try {
               const name = await recorder.save();
               console.log(`[scan] recorded to .cache/scans/${name}`);

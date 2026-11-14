@@ -17,7 +17,7 @@ import { planFixes } from "@/lib/fixes/plan";
 import { computeExposure } from "@/lib/fixes/score";
 import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
-import { AttackMapSlot, FixListSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
+import { AttackMapSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
   function Loading() {
@@ -44,12 +44,16 @@ export function Results() {
   const [breachFindings, setBreachFindings] = useState<Finding[]>([]);
   // The on-device voice check adds one derived "Your voice, N seconds, public" finding.
   const [voiceFindings, setVoiceFindings] = useState<Finding[]>([]);
+  // Gemini photo / video reading (explicit clicks in Photos and Practice) adds what the media reveals.
+  const [matchedPhotos, setMatchedPhotos] = useState<Finding[]>([]);
+  const [photoFindings, setPhotoFindings] = useState<Finding[]>([]);
+  const [videoFindings, setVideoFindings] = useState<Finding[]>([]);
   const findings = useMemo(() => {
-    const extra = [...breachFindings, ...voiceFindings];
+    const extra = [...breachFindings, ...voiceFindings, ...photoFindings, ...videoFindings];
     if (!extra.length) return scan.findings;
     const ids = new Set(scan.findings.map((f) => f.id));
     return [...scan.findings, ...extra.filter((f) => !ids.has(f.id))];
-  }, [scan.findings, breachFindings, voiceFindings]);
+  }, [scan.findings, breachFindings, voiceFindings, photoFindings, videoFindings]);
 
   const go = (t: ResultsTab) => {
     setTab(t);
@@ -115,6 +119,9 @@ export function Results() {
           <div id="voice-exposure" className="scroll-mt-4 border-t border-edge pt-12 [&>section]:mx-0">
             <VoiceExposureSlot findings={scan.findings} masked={masked} onDerived={setVoiceFindings} />
           </div>
+          <div id="video-context" className="scroll-mt-4 border-t border-edge pt-12 empty:hidden">
+            <VideoContextSlot findings={scan.findings} masked={masked} onFindings={setVideoFindings} />
+          </div>
         </div>
       </Panel>
 
@@ -128,7 +135,8 @@ export function Results() {
       <Panel id="photos" active={tab} keep={visited}>
         <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
           {s.face === "skipped" && <WarnNote className="mb-6">Face match is off</WarnNote>}
-          <PhotoMatchesSlot findings={findings} clearOnUnmount={false} />
+          <PhotoMatchesSlot findings={findings} clearOnUnmount={false} onMatchedChange={setMatchedPhotos} />
+          <PhotoContextSlot photos={matchedPhotos} masked={masked} onFindings={setPhotoFindings} className="mt-12 border-t border-edge pt-12" />
           <PhotoGrid findings={findings} />
         </div>
       </Panel>

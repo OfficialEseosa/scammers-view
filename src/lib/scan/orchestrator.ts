@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { estimateCostUsd, getGemini, LlmBillingError, LlmNotConfiguredError, MODELS, modelLabel, type LlmUsage } from "@/lib/llm/gemini";
 import type { Finding, ScanSubject } from "@/lib/types";
 import { FindingCollector, type Emit } from "./findings";
 import { runGithubSource } from "./github";
@@ -10,13 +10,19 @@ import { followUpPlans, roundOnePlans, type AgentPlan } from "./roster";
 import { runSearchWorker, type WorkerResult } from "./searchWorker";
 import { runSocialSources } from "./social";
 
-const REASONING_MODEL = () => process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
-const SEARCH_MODEL = () => process.env.ANTHROPIC_SEARCH_MODEL || "claude-sonnet-5-5";
 
 /** Stop queueing new pages after this long; in-flight work still finishes. */
-const PAGE_DEADLINE_MS = 66_000;
+const PAGE_DEADLINE_MS = 50_000;
 const MAX_PAGES = 24;
-const MAX_CONCURRENT_CLAUDE = 12;
+/** Concurrent Gemini calls per scan; lower it (SCAN_CONCURRENCY) on low-RPM tiers. */
+const MAX_CONCURRENT = () => Math.max(1, Number(process.env.SCAN_CONCURRENCY) || 12);
+
+/** Billing / missing-key errors end the scan with a clear message instead of an empty result. */
+function throwIfFatal(results: PromiseSettledResult<unknown>[]) {
+  for (const r of results) {
+    if (r.status === "rejected" && (r.reason instanceof LlmBillingError || r.reason instanceof LlmNotConfiguredError)) throw r.reason;
+  }
+}
 
 /**
  * Runs a full scan of `subject` (which must come from getScanSubject(), never
@@ -28,9 +34,14 @@ const MAX_CONCURRENT_CLAUDE = 12;
  */
 export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSignal): Promise<Finding[] | null> {
   const started = Date.now();
-  const client = new Anthropic({ maxRetries: 2 });
-  const collector = new FindingCollector(emit, { client, signal });
-  const limiter = new Limiter(MAX_CONCURRENT_CLAUDE);
+  getGemini(); // fail fast (LlmNotConfiguredError) before any agent starts
+  const searchModel = MODELS.fast;
+  const reasoningModel = MODELS.reasoning;
+  // Per-scan usage meter (tokens + executed Google Search queries) for the cost log.
+  const calls: LlmUsage[] = [];
+  const onUsage = (u: LlmUsage) => calls.push(u);
+  const collector = new FindingCollector(emit, { judge: true, signal, onUsage });
+  const limiter = new Limiter(MAX_CONCURRENT());
   const only = process.env.SCAN_SOURCES?.split(",").map((s) => s.trim()).filter(Boolean);
   const enabled = (id: string) => !only || only.includes(id);
   const countFor = (agentId: string) => [...collector.agentOf.values()].filter((a) => a === agentId).length;
@@ -44,9 +55,13 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
       .join("; ");
 
   const reader = new PageReader(subject, collector, {
-    client, model: SEARCH_MODEL(), signal, limiter, maxPages: MAX_PAGES, deadline: started + PAGE_DEADLINE_MS, knownAnchors,
+    model: searchModel, onUsage, signal, limiter, maxPages: MAX_PAGES, deadline: started + PAGE_DEADLINE_MS, knownAnchors,
   });
-  const workerCtx = { subject, collector, reader, client, model: SEARCH_MODEL(), limiter, signal, knownAnchors };
+  const liveQueries: string[] = [];
+  const workerCtx = {
+    subject, collector, reader, model: searchModel, limiter, signal, knownAnchors, onUsage,
+    onQueries: (_agentId: string, qs: string[]) => { liveQueries.push(...qs); },
+  };
   const usage: WorkerResult[] = [];
 
   const runAgent = async (plan: AgentPlan) => {
@@ -57,6 +72,9 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
   };
 
   emit({ type: "status", message: "Starting scan of your public footprint" });
+  emit({ type: "status", stage: "search", model: searchModel, message: `Search agents: ${modelLabel(searchModel)} with Google Search, in parallel` });
+  emit({ type: "status", stage: "pages", model: searchModel, message: `Page reader: ${modelLabel(searchModel)} structured extraction, URL context as fallback` });
+  emit({ type: "status", stage: "dedupe", model: MODELS.lite, message: `Duplicate check: ${modelLabel(MODELS.lite)}` });
   emit({ type: "source_started", sourceType: "web", agentId: "pages", agentLabel: "Reading pages in full", query: "pages found by the searches" });
 
   // --- Round 1
@@ -83,8 +101,9 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
   const photoTask = photosOn ? addGravatarPhotos([subject.email], collector, signal) : Promise.resolve(0);
 
   const round1 = roundOnePlans(subject).filter((p) => enabled(p.id));
-  await Promise.allSettled([githubTask, photoTask, ...round1.map(runAgent)]);
+  const settled1 = await Promise.allSettled([githubTask, photoTask, ...round1.map(runAgent)]);
   if (signal.aborted) return null;
+  throwIfFatal(settled1);
   if (photosOn) {
     await addGravatarPhotos(collector.confirmed().filter((f) => f.category === "email").map((f) => f.value), collector, signal);
     emit({ type: "source_done", sourceType: "other", agentId: "photos", count: countFor("photos") });
@@ -101,7 +120,7 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
     }
   }
   if (enabled("social")) round2.push(runSocialSources([...collector.all], { collector, reader, emit, signal }));
-  await Promise.allSettled(round2);
+  throwIfFatal(await Promise.allSettled(round2));
   if (signal.aborted) return null;
 
   await reader.drain();
@@ -109,10 +128,11 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
   if (signal.aborted) return null;
 
   // --- Reasoning
-  emit({ type: "status", message: `Found ${collector.all.length} facts. Working out how a scammer would chain them together` });
+  emit({ type: "status", stage: "reasoning", model: reasoningModel, message: `Found ${collector.all.length} facts. ${modelLabel(reasoningModel)} is thinking through how a scammer would chain them together` });
   const t1 = Date.now();
   const final = collector.snapshot();
-  const r = await runReasoning(final, { client, model: REASONING_MODEL(), signal });
+  const thinking = (["low", "medium", "high"] as const).find((x) => x === process.env.SCAN_REASONING_THINKING) ?? "low";
+  const r = await runReasoning(final, { model: reasoningModel, signal, thinking, onUsage });
   emit({ type: "score", score: r.score });
   for (const chain of r.chains) emit({ type: "chain", chain });
 
@@ -129,10 +149,20 @@ export async function runScan(subject: ScanSubject, emit: Emit, signal: AbortSig
       nearDuplicatesJudgedByReasoning: r.merged,
       dedupe: { ...collector.stats, judge: collector.judgeStats() },
       workers: usage.length,
+      models: { search: searchModel, reasoning: reasoningModel, dedupe: MODELS.lite },
       searches: sum("searches"),
-      searchTokens: { input: sum("input"), cacheRead: sum("cacheRead"), output: sum("output") },
-      pages: { read: reader.pagesRead, failed: reader.pagesFailed, tokens: reader.usage },
+      liveQueries: liveQueries.length,
+      citations: { pinned: sum("pinned"), droppedUncited: sum("uncited"), workersWithoutCitations: sum("noCitations") },
+      searchTokens: { input: sum("input"), output: sum("output"), thought: sum("thought") },
+      pages: { read: reader.pagesRead, viaUrlContext: reader.urlContextReads, failed: reader.pagesFailed, tokens: reader.usage },
       reasoningTokens: r.usage,
+      llmCalls: calls.length,
+      costUsd: {
+        tokens: Math.round(calls.reduce((n, u) => n + estimateCostUsd(u, { countSearch: false }), 0) * 10000) / 10000,
+        searchQueries: calls.reduce((n, u) => n + u.searchQueries, 0),
+        // Google Search grounding: first 5,000 queries/month free, then $14 / 1,000.
+        withPaidSearch: Math.round(calls.reduce((n, u) => n + estimateCostUsd(u), 0) * 10000) / 10000,
+      },
     }),
   );
   return final;

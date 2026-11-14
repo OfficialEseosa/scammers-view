@@ -74,6 +74,15 @@ export function handleKey(f: Comparable): { platform: string; handle: string } |
   if (!/^[a-z0-9._-]{2,40}$/.test(handle)) return null;
   for (const [re, p] of PLATFORM_WORDS) if (re.test(f.label)) return { platform: p, handle };
   if (/^\$/.test(v)) return { platform: "cashapp", handle };
+  // Platforms we have no word list for ("Audiomack handle"): the label's platform
+  // word, else the source host; sourceType is too coarse (web vs other split dups).
+  const named = f.label.match(/^\s*([a-z][a-z0-9.]{1,24})\s+(handle|username|user ?name|profile|account|channel|id)\b/i);
+  if (named && !/^(social|public|online|linked|display|user|profile)$/i.test(named[1])) return { platform: named[1].toLowerCase(), handle };
+  const src = (f as { sourceUrl?: string }).sourceUrl;
+  if (src && looksLikeUrl(src)) {
+    const host = canonicalUrl(src).split("/")[0].replace(/^www\./, "");
+    if (host) return { platform: host, handle };
+  }
   return { platform: f.sourceType || "unknown", handle };
 }
 

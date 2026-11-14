@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test:scan": "tsx --test src/lib/scan/scan.test.mjs",
+    "test:llm": "tsx --test src/lib/llm/gemini.test.ts",
     "test:voice-exposure": "tsx --test src/lib/voice-exposure/voice-exposure.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
+    "@google/genai": "^3.3.0",
     "@huggingface/transformers": "4.3.2",
     "@mediapipe/tasks-vision": "^1.2.3",
     "@vladmandic/face-api": "^1.7.15",

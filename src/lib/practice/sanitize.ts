@@ -127,7 +127,7 @@ export function finalizeDraft(args: {
   draft: ModelDraft;
   kind: PracticeKind;
   scenario: PracticeScenario;
-  provider: "claude" | "gemini";
+  provider: "gemini";
   findings: Finding[];
   addressedTo: string;
   subjectEmail: string;

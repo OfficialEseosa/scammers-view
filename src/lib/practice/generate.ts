@@ -1,6 +1,6 @@
+import { LlmNotConfiguredError, LlmRefusalError, MODELS, generateJson, isLlmConfigured } from "@/lib/llm/gemini";
 import type { Finding, ScanSubject } from "@/lib/types";
-import { buildUserPrompt, factsForPrompt, recipientFirstName } from "./prompt";
-import { PROVIDERS, type PracticeProvider } from "./providers";
+import { ModelDraft, SYSTEM_PROMPT, buildUserPrompt, factsForPrompt, recipientFirstName } from "./prompt";
 import { finalizeDraft } from "./sanitize";
 import {
   PRACTICE_LABEL,
@@ -11,52 +11,76 @@ import {
   type TellsOnly,
 } from "./schema";
 
-export type Attempt = { provider: string; outcome: string; detail?: string };
+export type Attempt = { provider: "gemini"; outcome: string; detail?: string };
+
+/** Whole-request deadline (both attempts); past it the route answers with the tells-only lesson. */
+const TIMEOUT_MS = 45_000;
+/** Practice messages: fast model, low thinking (bench 2026-11-14: tells still exact, ~2x faster than argon). */
+const PRACTICE_MODEL = () => process.env.GEMINI_MODEL_PRACTICE?.trim() || MODELS.fast;
 
 /**
- * Generates a practice message addressed to the signed-in subject.
- * Tries each available provider in order; a refusal or invalid output falls through
- * to the next. If none produce a usable message, returns a tells-only lesson.
+ * Generates a practice message addressed to the signed-in subject with Gemini.
+ * A block/refusal, invalid output, or a message whose tells don't match its body
+ * falls back to a tells-only lesson. (The shared layer already does one repair
+ * retry for schema-invalid JSON.)
  */
 export async function generatePractice(args: {
   subject: ScanSubject;
   findings: Finding[];
   kind: PracticeKind;
   scenario: PracticeScenario;
-  providers?: PracticeProvider[];
 }): Promise<{ result: PracticeResponse; attempts: Attempt[] }> {
   const attempts: Attempt[] = [];
+  if (!isLlmConfigured()) {
+    attempts.push({ provider: "gemini", outcome: "unavailable", detail: "GEMINI_API_KEY not set" });
+    return { result: buildTellsOnly(args, attempts), attempts };
+  }
   const userPrompt = buildUserPrompt(args);
   const addressedTo = recipientFirstName(args.subject);
 
-  for (const p of args.providers ?? PROVIDERS) {
-    if (!p.available()) {
-      attempts.push({ provider: p.name, outcome: "unavailable" });
-      continue;
-    }
-    // one retry per provider for invalid output (not for refusals)
-    for (let i = 0; i < 2; i++) {
-      const r = await p.generate(userPrompt);
-      if (!r.ok) {
-        attempts.push({ provider: p.name, outcome: r.reason, detail: r.detail });
-        if (r.reason !== "invalid") break;
-        continue;
-      }
-      const msg = finalizeDraft({
-        draft: r.draft,
-        kind: args.kind,
-        scenario: args.scenario,
-        provider: p.name,
-        findings: args.findings,
-        addressedTo,
-        subjectEmail: args.subject.email,
+  // One extra attempt only when the model's tells didn't match its own body, within one deadline.
+  const deadline = AbortSignal.timeout(TIMEOUT_MS);
+  for (let i = 0; i < 2; i++) {
+    if (deadline.aborted) break;
+    let draft: ModelDraft;
+    try {
+      draft = await generateJson({
+        model: PRACTICE_MODEL(),
+        thinking: "low",
+        system: SYSTEM_PROMPT,
+        prompt: userPrompt,
+        schema: ModelDraft,
+        signal: deadline,
+        timeoutMs: TIMEOUT_MS,
       });
-      if (msg) {
-        attempts.push({ provider: p.name, outcome: "ok", detail: `${msg.tells.length}/${r.draft.tells.length} tells kept` });
-        return { result: msg, attempts };
+    } catch (err) {
+      if (err instanceof LlmRefusalError) {
+        attempts.push({ provider: "gemini", outcome: "declined", detail: `blocked: ${err.reason.slice(0, 80)}` });
+      } else if (err instanceof LlmNotConfiguredError) {
+        attempts.push({ provider: "gemini", outcome: "unavailable", detail: "GEMINI_API_KEY not set" });
+      } else {
+        attempts.push({
+          provider: "gemini",
+          outcome: err instanceof Error && err.name === "LlmOutputError" ? "invalid" : "error",
+          detail: err instanceof Error ? err.message.slice(0, 120) : "unknown",
+        });
       }
-      attempts.push({ provider: p.name, outcome: "invalid", detail: "too few tells matched the body" });
+      break;
     }
+    const msg = finalizeDraft({
+      draft,
+      kind: args.kind,
+      scenario: args.scenario,
+      provider: "gemini",
+      findings: args.findings,
+      addressedTo,
+      subjectEmail: args.subject.email,
+    });
+    if (msg) {
+      attempts.push({ provider: "gemini", outcome: "ok", detail: `${msg.tells.length}/${draft.tells.length} tells kept` });
+      return { result: msg, attempts };
+    }
+    attempts.push({ provider: "gemini", outcome: "invalid", detail: "too few tells matched the body" });
   }
 
   return { result: buildTellsOnly(args, attempts), attempts };

@@ -66,7 +66,7 @@ export type QuizItem = z.infer<typeof QuizItem>;
 export const QuizResponse = z.object({
   practice: z.literal(true),
   /** Who wrote the content. "fallback" = built-in fictional set. */
-  source: z.enum(["claude", "fallback"]),
+  source: z.enum(["gemini", "fallback"]),
   /** The signed-in person's name, so the UI can mask it. */
   recipient: z.string(),
   items: z.array(QuizItem).length(6),

@@ -1,16 +1,18 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { generateJson, groundedJson, type LlmUsage } from "@/lib/llm/gemini";
 import { FindingCategory, SourceType, type ScanSubject } from "@/lib/types";
 import { normalizeUrl, type FindingCollector } from "./findings";
 import { Limiter } from "./limit";
 import { fetchPage, urlAllowed, type PageData } from "./pageFetch";
-import { subjectBlock } from "./prompts";
+import { CATEGORY_GUIDE, subjectBlock } from "./prompts";
 
 /**
  * Reads public pages in full (our own guarded fetcher, so we also see image
- * URLs and links), and has Claude extract facts + photo candidates from the
- * page body. Findings stream out as each page finishes.
+ * URLs and links), and has Gemini extract facts + photo candidates from the
+ * page body with structured output. When our fetcher cannot get a page (bot
+ * walls, odd encodings), Gemini's URL context tool reads it instead (text
+ * facts only: no image/link lists, so no photos or follow-links from those).
+ * Findings stream out as each page finishes.
  */
 
 const Extraction = z.object({
@@ -49,7 +51,9 @@ Rules:
 Quality bar (fewer, sharper facts beat padding):
 - Hunt for what scammers use: email addresses and their pattern, phone numbers, birthday or age hints, hometown, high school, pets' names, relatives' names, schedule/routine (classes, practice times, shifts, commute, gym), employer + role + manager/teammate names, payment-app handles (Venmo/Cash App).
 - Interests only when specific enough to build a pretext around (a named team, club, game, band, event, project) — never generic skills like "web development" or "Python". At most 3 interests per page.
-- One finding per handle per platform. Don't restate the same fact with different wording.`
+- One finding per handle per platform. Don't restate the same fact with different wording.
+
+${CATEGORY_GUIDE}`;
 
 export interface PageLead {
   url: string;
@@ -64,14 +68,16 @@ export class PageReader {
   count = 0;
   pagesRead = 0;
   pagesFailed = 0;
-  usage = { input: 0, output: 0 };
+  /** Pages read by Gemini's URL context tool after our fetcher failed. */
+  urlContextReads = 0;
+  usage = { input: 0, output: 0, thought: 0 };
 
   constructor(
     private subject: ScanSubject,
     private collector: FindingCollector,
     private opts: {
-      client: Anthropic;
       model: string;
+      onUsage?: (u: LlmUsage) => void;
       signal: AbortSignal;
       limiter: Limiter;
       maxPages: number;
@@ -128,8 +134,10 @@ export class PageReader {
     try {
       const page = await fetchPage(lead.url, signal);
       if (!page) {
-        if (process.env.SCAN_DEBUG === "1") console.log("[scan:pages] fetch gave nothing");
-        this.pagesFailed++;
+        if (process.env.SCAN_DEBUG === "1") console.log("[scan:pages] fetch gave nothing; trying URL context");
+        if (Date.now() > this.opts.deadline + 10_000) return;
+        const ok = await this.opts.limiter.run(() => this.extractViaUrlContext(lead));
+        if (!ok) this.pagesFailed++;
         return;
       }
       if (Date.now() > this.opts.deadline + 10_000) return;
@@ -182,8 +190,66 @@ export class PageReader {
     return res;
   }
 
+  private track = (u: LlmUsage) => {
+    this.usage.input += u.inputTokens;
+    this.usage.output += u.outputTokens;
+    this.usage.thought += u.thoughtTokens;
+    this.opts.onUsage?.(u);
+  };
+
+  /** Gemini URL context tool reads the page server-side; we keep text facts only. */
+  private async extractViaUrlContext(lead: PageLead): Promise<boolean> {
+    const { model, signal } = this.opts;
+    try {
+      const r = await groundedJson({
+        model,
+        system: SYSTEM,
+        schema: Extraction,
+        search: false,
+        urls: [lead.url],
+        thinking: "low",
+        maxOutputTokens: 6000,
+        prompt: `SUBJECT (the signed-in user):
+${subjectBlock(this.subject)}
+Already confirmed about them: ${this.opts.knownAnchors() || "(nothing yet)"}
+
+Read ONLY this page with the URL context tool: ${lead.url}
+There is no IMAGES or LINKS list for this page: return no "photo" findings, imageUrl "" everywhere, and followLinks [].`,
+        signal: AbortSignal.any([signal, AbortSignal.timeout(40_000)]),
+        onUsage: this.track,
+      });
+      const fetched = r.retrieved.some((x) => x.status === "success");
+      if (r.retrieved.length && !fetched) return false;
+      this.pagesRead++;
+      this.urlContextReads++;
+      if (!r.data.aboutSubject) return true;
+      // All at once: the collector judges a page's facts together in one batch.
+      const adds: Promise<{ ok: boolean }>[] = [];
+      for (const f of r.data.findings) {
+        if (f.category === "photo") continue;
+        adds.push(this.collector.add(
+          {
+            ...f,
+            imageUrl: undefined,
+            snippet: f.snippet || undefined,
+            sourceUrl: lead.url,
+            confidence: Math.min(1, Math.max(0, f.confidence)),
+            riskWeight: Math.min(10, Math.max(0, f.riskWeight)),
+          },
+          "pages",
+        ));
+      }
+      const n = (await Promise.all(adds)).filter((x) => x.ok).length;
+      this.count += n;
+      return true;
+    } catch (e) {
+      if (!signal.aborted && process.env.SCAN_DEBUG === "1") console.log("[scan:pages] URL context failed:", e instanceof Error ? e.message.slice(0, 120) : e);
+      return false;
+    }
+  }
+
   private async extract(page: PageData, depth: number, agentId: string): Promise<number> {
-    const { client, model, signal } = this.opts;
+    const { model, signal } = this.opts;
     const imgList = page.images.map((im, i) => `${i + 1}. ${im.url}\n   alt: ${im.alt || "(none)"}\n   nearby text: ${im.context || "(none)"}`).join("\n");
     const linkList = page.links.slice(0, 60).map((l) => `- ${l.url} (${l.text || "no text"})`).join("\n");
     const content = `SUBJECT (the signed-in user):
@@ -203,29 +269,25 @@ ${imgList || "(none)"}
 LINKS:
 ${linkList || "(none)"}`;
 
-    const res = await client.beta.messages.parse(
-      {
-        model,
-        max_tokens: 6000,
-        system: SYSTEM,
-        output_config: { effort: "low", format: betaZodOutputFormat(Extraction) },
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        messages: [{ role: "user", content }],
-      },
-      { signal: AbortSignal.any([signal, AbortSignal.timeout(40_000)]) },
-    );
-    this.usage.input += res.usage.input_tokens;
-    this.usage.output += res.usage.output_tokens;
-    const out = res.parsed_output;
-    if (!out || !out.aboutSubject) return 0;
+    const out = await generateJson({
+      model,
+      system: SYSTEM,
+      schema: Extraction,
+      thinking: "low",
+      maxOutputTokens: 6000,
+      prompt: content,
+      signal: AbortSignal.any([signal, AbortSignal.timeout(40_000)]),
+      onUsage: this.track,
+    });
+    if (!out.aboutSubject) return 0;
 
     const imageSet = new Set(page.images.map((i) => i.url));
     let n = 0;
     const picked = new Set(out.findings.filter((f) => f.category === "photo").map((f) => f.imageUrl));
+    const adds: Promise<{ ok: boolean }>[] = [];
     for (const f of [...out.findings, ...this.photoCandidates(page, out, picked)]) {
       if (f.category === "photo" && !imageSet.has(f.imageUrl)) continue;
-      const r = await this.collector.add(
+      adds.push(this.collector.add(
         {
           ...f,
           imageUrl: f.imageUrl || undefined,
@@ -236,9 +298,9 @@ ${linkList || "(none)"}`;
           riskWeight: Math.min(10, Math.max(0, f.riskWeight)),
         },
         agentId,
-      );
-      if (r.ok) n++;
+      ));
     }
+    n = (await Promise.all(adds)).filter((x) => x.ok).length;
     this.count += n;
     if (depth < 1) {
       const linkSet = new Set(page.links.map((l) => l.url));
