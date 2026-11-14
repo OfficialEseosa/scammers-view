@@ -117,6 +117,33 @@ function measureLight(
 /** Shortest time the turning scan stays up, so it reads as a step and not a flicker. */
 const MIN_VERIFY_MS = 1800;
 
+const MATCH_MAX_SIDE = 640;
+const MATCH_DEADLINE_MS = 25_000;
+
+/** A copy of the frame no larger than MATCH_MAX_SIDE on its long side. */
+function shrink(src: HTMLCanvasElement): HTMLCanvasElement {
+  const scale = Math.min(1, MATCH_MAX_SIDE / Math.max(src.width, src.height));
+  if (scale === 1) return src;
+  const out = document.createElement("canvas");
+  out.width = Math.round(src.width * scale);
+  out.height = Math.round(src.height * scale);
+  out.getContext("2d")?.drawImage(src, 0, 0, out.width, out.height);
+  return out;
+}
+
+/** Matching that never finishes becomes a clear failure instead of an endless wait. */
+function withDeadline<T>(work: Promise<T>): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Matching took too long on this device. Try again.")), MATCH_DEADLINE_MS)),
+  ]);
+}
+
+/** Hands the page back for a moment so the animation keeps moving between heavy steps. */
+function breathe(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Resolves after the browser has painted, so heavy work doesn't block a pending frame. */
 function nextPaint(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -186,19 +213,23 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       setScanModel(scanModelRef.current);
       setStage({ kind: "verifying" });
       const startedAt = performance.now();
-      // Matching is heavy. Let the turning scan paint before it starts, and between frames.
+      // Matching is heavy. Let the turning scan get on screen and move before it starts, and between frames.
       await nextPaint();
+      await breathe(450);
       const { front, left, right } = capturesRef.current;
       if (!front || !left || !right) {
         fail("The scan didn't finish", "Some frames were missing. Try again.");
         return;
       }
       try {
-        const f = await describeLargestFace(front);
-        await nextPaint();
-        const l = await describeLargestFace(left);
-        await nextPaint();
-        const r = await describeLargestFace(right);
+        // Smaller frames match just as well and several times faster.
+        const t0 = performance.now();
+        const f = await withDeadline(describeLargestFace(shrink(front)));
+        await breathe(200);
+        const l = await withDeadline(describeLargestFace(shrink(left)));
+        await breathe(200);
+        const r = await withDeadline(describeLargestFace(shrink(right)));
+        console.info(`[face] matched 3 frames in ${Math.round(performance.now() - t0)} ms`);
         // Keep the scan on screen long enough to register.
         const shown = performance.now() - startedAt;
         if (shown < MIN_VERIFY_MS) await new Promise((res) => setTimeout(res, MIN_VERIFY_MS - shown));
