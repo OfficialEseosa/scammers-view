@@ -1,0 +1,136 @@
+/*
+ * Scammer's View design tokens.
+ * Monochrome: solid black (dark, default) or solid white (light, "projector").
+ * Greys are neutral. The only hues are risk signals: danger, warn, safe.
+ * The "accent" is the inverse of the page: white on black, black on white.
+ */
+
+:root {
+  /* type */
+  --font-display: "Clash Display", "Switzer", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Switzer", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-evidence: var(--font-fragment-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* radius */
+  --radius-chip: 6px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-frame: 28px;
+
+  /* spacing scale: 4 8 12 16 24 32 48 72 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-18: 72px;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 120ms;
+  --dur-small: 180ms;
+  --dur-panel: 240ms;
+  --dur-reveal: 320ms;
+  --dur-swipe: 380ms;
+  --dur-sheet: 400ms;
+}
+
+/* ---------- dark (default): solid black ---------- */
+:root:not([data-theme="light"]),
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #0b0b0b;
+  --elevated: #141414;
+  --sunken: #050505;
+  --border: #262626;
+  --border-strong: #3d3d3d;
+  --text: #ffffff;
+  --muted: #a3a3a3; /* 8.3:1 on bg, 7.6:1 on elevated */
+  --subtle: #7c7c7c; /* 4.9:1 on bg: non-essential text only */
+  --accent: #ffffff;
+  --on-accent: #000000;
+
+  --danger: #ff5f52;
+  --warn: #f5b843;
+  --safe: #3ddc97;
+  --danger-fg: #ff7a6f;
+  --warn-fg: #f5b843;
+  --safe-fg: #3ddc97;
+
+  --grain-opacity: 0.06;
+  --dot: rgb(255 255 255 / 0.17);
+  --dot-hot: rgb(255 255 255 / 0.85);
+
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-pop: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -20px rgb(0 0 0 / 0.9);
+  --icon-filter: none;
+
+  /* device frames (neutral, realistic) */
+  --frame-bezel: #1a1a1a;
+  --frame-bezel-edge: #333333;
+  --frame-screen: #f5f5f5;
+  --frame-ink: #0a0a0a;
+  --frame-muted: #5c5c5c;
+  --frame-bubble: #e4e4e4;
+  --frame-line: rgb(0 0 0 / 0.1);
+  --frame-chrome: #ebebeb;
+}
+
+/* ---------- light ("projector"): solid white ---------- */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --elevated: #ffffff;
+  --sunken: #f4f4f4;
+  --border: #e3e3e3;
+  --border-strong: #c7c7c7;
+  --text: #000000;
+  --muted: #525252; /* 7.8:1 */
+  --subtle: #6e6e6e; /* 5.1:1 */
+  --accent: #000000;
+  --on-accent: #ffffff;
+
+  --danger: #c2321f;
+  --warn: #f2b441; /* fills and marks only */
+  --safe: #0b7a5e;
+  --danger-fg: #b22d1b; /* AA on its 14% tint */
+  --warn-fg: #8a5a00;
+  --safe-fg: #0a6e55;
+
+  --grain-opacity: 0.045;
+  --dot: rgb(0 0 0 / 0.16);
+  --dot-hot: rgb(0 0 0 / 0.85);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -14px rgb(0 0 0 / 0.16);
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.06), 0 18px 40px -16px rgb(0 0 0 / 0.25);
+  --icon-filter: brightness(0.94) contrast(1.12) drop-shadow(0 6px 10px rgb(0 0 0 / 0.12));
+
+  --frame-bezel: #0a0a0a;
+  --frame-bezel-edge: #0a0a0a;
+  --frame-screen: #ffffff;
+  --frame-ink: #0a0a0a;
+  --frame-muted: #5c5c5c;
+  --frame-bubble: #ececec;
+  --frame-line: rgb(0 0 0 / 0.1);
+  --frame-chrome: #f2f2f2;
+}
+
+/* derived: risk tints (14% for badge fills, 22% for highlights) */
+:root {
+  --danger-tint: color-mix(in srgb, var(--danger) 14%, transparent);
+  --warn-tint: color-mix(in srgb, var(--warn) 14%, transparent);
+  --safe-tint: color-mix(in srgb, var(--safe) 14%, transparent);
+  --danger-hl: color-mix(in srgb, var(--danger) 22%, transparent);
+  --warn-hl: color-mix(in srgb, var(--warn) 22%, transparent);
+  --chart-1: var(--text);
+  --chart-2: color-mix(in srgb, var(--text) 62%, var(--bg));
+  --chart-3: color-mix(in srgb, var(--text) 38%, var(--bg));
+  --chart-4: color-mix(in srgb, var(--text) 22%, var(--bg));
+  --chart-grid: var(--border);
+}

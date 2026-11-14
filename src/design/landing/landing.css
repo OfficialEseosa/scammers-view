@@ -1,0 +1,413 @@
+/*
+ * Landing scroll choreography.
+ *
+ * Rule: everything is visible by default. Motion is layered on only where
+ * scroll-driven animations exist AND the viewer has not asked for less motion.
+ * Older browsers / reduced motion get one-shot opacity reveals from
+ * <ScrollFx/> (data-armed / data-in), which only arm once JS is running.
+ * Only transform / opacity animate (plus stroke-dashoffset on the tiny chain SVG).
+ */
+
+/* ---------- 3D subject card (structure; motion values drive the tilt) ---------- */
+.sv-stage {
+  perspective: 1100px;
+}
+.sv-3d {
+  transform-style: preserve-3d;
+}
+.sv-z-1 {
+  translate: 0 0 14px;
+}
+.sv-z-2 {
+  translate: 0 0 28px;
+}
+.sv-z-3 {
+  translate: 0 0 34px;
+}
+.sv-sheen,
+.sv-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+}
+.sv-edge {
+  padding: 1px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+.sv-sheen > span,
+.sv-edge > span {
+  position: absolute;
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 50% 50%, var(--sheen) 0, transparent 34%);
+}
+.sv-edge > span {
+  background: radial-gradient(circle at 50% 50%, var(--sheen-edge) 0, transparent 30%);
+}
+:root:not([data-theme="light"]),
+[data-theme="dark"] {
+  --sheen: rgb(255 255 255 / 0.075);
+  --sheen-edge: rgb(255 255 255 / 0.7);
+}
+[data-theme="light"] {
+  --sheen: rgb(0 0 0 / 0.035);
+  --sheen-edge: rgb(0 0 0 / 0.55);
+}
+
+/* Page-load entrance for the hero (time-based, runs without JS). */
+.sv-intro {
+  animation: sv-intro 800ms var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes sv-intro {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+}
+
+/* Words of a heading sit in clipping slots so they can rise into place. */
+.sv-word {
+  display: inline-block;
+  overflow: clip;
+  padding-block: 0.08em 0.14em;
+  margin-block: -0.08em -0.14em;
+  vertical-align: bottom;
+}
+.sv-word > span {
+  display: inline-block;
+}
+
+/* ---------- reading progress (decorative: no fallback) ---------- */
+.sv-progress {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: scroll()) and (animation-range: entry)) {
+    .sv-progress {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: 2px;
+      z-index: 70;
+      pointer-events: none;
+      background: var(--text);
+      transform-origin: 0 50%;
+      animation: sv-progress linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+@keyframes sv-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ---------- scroll-driven choreography ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* Idle float for the card on touch screens (no pointer to follow). */
+  @media (pointer: coarse) {
+    :not([data-gyro]) > .sv-idle {
+      animation: sv-idle 9s ease-in-out infinite;
+    }
+  }
+
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    /* Hero recedes: copy lags, scales back and dims; the card tips away. */
+    .sv-hero {
+      view-timeline: --hero block;
+    }
+    .sv-hero-copy {
+      transform-origin: 0 40%;
+      animation: sv-hero-copy-out linear both;
+      animation-timeline: --hero;
+      animation-range: exit 6% exit 90%;
+    }
+    .sv-hero-card {
+      transform-origin: 50% 0%;
+      animation: sv-hero-card-out linear both;
+      animation-timeline: --hero;
+      animation-range: exit 6% exit 100%;
+    }
+
+    /* Section headings: the rule draws, then the words rise out of their slots. */
+    .sv-head {
+      view-timeline: --head block;
+    }
+    .sv-head .sv-rule > span {
+      transform-origin: 0 50%;
+      animation: sv-scale-x linear both;
+      animation-timeline: --head;
+      animation-range: entry 0% entry 70%;
+    }
+    .sv-head .sv-word > span {
+      animation: sv-word-in linear both;
+      animation-timeline: --head;
+      animation-range: entry calc(8% + var(--i, 0) * 7%) entry calc(78% + var(--i, 0) * 5%);
+    }
+
+    /* Big figure: the same slot rise, on its own element. */
+    .sv-figure {
+      view-timeline: --figure block;
+    }
+    .sv-figure .sv-word > span {
+      animation: sv-word-in linear both;
+      animation-timeline: --figure;
+      animation-range: entry 0% entry 90%;
+    }
+    .sv-figure .sv-after {
+      animation: sv-fade-up linear both;
+      animation-timeline: --figure;
+      animation-range: entry 40% cover 45%;
+    }
+
+    /* Chain: drawn in step with scroll, ending on the red target. */
+    .sv-chain {
+      view-timeline: --chain block;
+    }
+    .sv-chain .sv-draw {
+      stroke-dasharray: 1 1;
+      animation: sv-draw linear both;
+      animation-timeline: --chain;
+      animation-range: var(--r);
+    }
+    .sv-chain .sv-chain-fact {
+      animation: sv-from-left linear both;
+      animation-timeline: --chain;
+      animation-range: cover calc(14% + var(--i) * 4%) cover calc(26% + var(--i) * 4%);
+    }
+    .sv-chain .sv-chain-step {
+      animation: sv-pop-in linear both;
+      animation-timeline: --chain;
+      animation-range: var(--r);
+    }
+    .sv-chain .sv-chain-target {
+      animation: sv-target-in linear both;
+      animation-timeline: --chain;
+      animation-range: cover 46% cover 53%;
+    }
+    .sv-chain .sv-chain-taken {
+      animation: sv-fade-up linear both;
+      animation-timeline: --chain;
+      animation-range: cover 51% cover 55%;
+    }
+    .sv-chain .sv-chain-signals {
+      animation: sv-fade linear both;
+      animation-timeline: --chain;
+      animation-range: cover 54% cover 58%;
+    }
+    /* phone: the spine grows, the links arrive one by one */
+    .sv-chain .sv-spine {
+      transform-origin: 50% 0%;
+      animation: sv-scale-y linear both;
+      animation-timeline: --chain;
+      animation-range: entry 10% cover 55%;
+    }
+    .sv-chain .sv-link {
+      animation: sv-from-left linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+    .sv-chain .sv-link-target {
+      animation: sv-target-in linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+
+    /* Stat card: rises, the bars are handled on enter (see StatBand). */
+    .sv-rise {
+      animation: sv-fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry calc(5% + var(--i, 0) * 8%) entry calc(75% + var(--i, 0) * 8%);
+    }
+
+    /* Feature cards are dealt onto the table: they tip up from below, staggered.
+       The timeline sits on the list itself: on phones the list is a horizontal
+       scroller, and an anonymous view() would bind to it instead of the page. */
+    .sv-deck {
+      view-timeline: --deck block;
+    }
+    .sv-deal {
+      transform-origin: 50% 100%;
+      animation: sv-deal linear both;
+      animation-timeline: --deck;
+      animation-range: entry calc(var(--i, 0) * 7%) entry calc(45% + var(--i, 0) * 7%);
+    }
+
+    /* Comparison rows wipe in left to right, one row after the next (same reason:
+       the table scrolls sideways on phones, so the timeline is on its scroller). */
+    .sv-table {
+      view-timeline: --table block;
+    }
+    .sv-row > * {
+      animation: sv-from-left linear both;
+      animation-timeline: --table;
+      animation-range: entry calc(var(--k, 0) * 11% + var(--c, 0) * 3%) entry calc(var(--k, 0) * 11% + 22% + var(--c, 0) * 3%);
+    }
+
+    /* Final CTA: the panel lands, bars slide in, the mark drops into place. */
+    .sv-cta {
+      view-timeline: --cta block;
+    }
+    .sv-cta-panel {
+      transform-origin: 50% 100%;
+      animation: sv-cta-in linear both;
+      animation-timeline: --cta;
+      animation-range: entry 0% entry 85%;
+    }
+    .sv-cta-bar {
+      transform-origin: 100% 50%;
+      animation: sv-scale-x linear both;
+      animation-timeline: --cta;
+      animation-range: entry calc(30% + var(--i) * 7%) entry calc(70% + var(--i) * 6%);
+    }
+    .sv-cta-logo {
+      animation: sv-logo-land linear both;
+      animation-timeline: --cta;
+      animation-range: entry 45% entry 100%;
+    }
+  }
+}
+
+@keyframes sv-idle {
+  0%,
+  100% {
+    transform: rotateX(5deg) rotateY(-7deg);
+  }
+  50% {
+    transform: rotateX(-3deg) rotateY(6deg) translate3d(0, -6px, 0);
+  }
+}
+@keyframes sv-hero-copy-out {
+  to {
+    opacity: 0.1;
+    transform: translate3d(0, 20vh, 0) scale(0.93);
+  }
+}
+@keyframes sv-hero-card-out {
+  to {
+    opacity: 0.1;
+    transform: perspective(1400px) translate3d(0, 14vh, -160px) rotateX(32deg) rotateZ(-5deg);
+  }
+}
+@keyframes sv-scale-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes sv-scale-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes sv-word-in {
+  from {
+    transform: translate3d(0, 110%, 0) rotate(5deg);
+  }
+}
+@keyframes sv-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sv-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+  }
+}
+@keyframes sv-from-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+  }
+}
+@keyframes sv-pop-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.94);
+  }
+}
+@keyframes sv-target-in {
+  from {
+    opacity: 0.15;
+    transform: scale(0.86);
+  }
+  70% {
+    opacity: 1;
+  }
+}
+@keyframes sv-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sv-deal {
+  from {
+    opacity: 0;
+    transform: perspective(900px) translate3d(0, 70px, 0) rotateX(-24deg);
+  }
+}
+@keyframes sv-cta-in {
+  from {
+    opacity: 0.2;
+    transform: translate3d(0, 10vh, 0) scale(0.9);
+  }
+}
+@keyframes sv-logo-land {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -70px, 0) rotate(-14deg) scale(1.35);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+/* ---------- fallback reveals (no scroll timelines, or reduced motion) ---------- */
+[data-armed] {
+  transition:
+    opacity 520ms var(--ease-out),
+    transform 620ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+[data-armed]:not([data-in]) {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-armed]:not([data-in]) {
+    transform: none;
+  }
+}
+
+/* Stat bars grow and the figure counts when the card enters (armed by JS only). */
+.sv-bars[data-armed] {
+  opacity: 1;
+  transform: none;
+}
+.sv-bars .sv-bar-grow {
+  transform-origin: 0 50%;
+  transition: transform 900ms var(--ease-out);
+  transition-delay: calc(150ms + var(--i, 0) * 180ms);
+}
+.sv-bars[data-armed]:not([data-in]) .sv-bar-grow {
+  transform: scaleX(0);
+}

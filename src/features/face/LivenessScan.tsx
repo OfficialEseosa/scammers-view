@@ -1,0 +1,568 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { createFaceLandmarker } from "@/lib/face/landmarker";
+import { drawMesh, meshConnections } from "@/lib/face/mesh";
+import { HeadTurnChallenge, TURN_TARGET_DEG, type CaptureKind } from "@/lib/face/liveness";
+import { SAME_PERSON_THRESHOLD } from "@/lib/face/match";
+import { estimateYawDeg } from "@/lib/face/pose";
+import { describeLargestFace, euclidean, loadRecognizer } from "@/lib/face/recognizer";
+import { setFaceReference, trackCanvas, wipeCanvas } from "@/lib/face/store";
+import type { LivenessResult, TurnDirection } from "@/lib/face/types";
+import { buttonClass } from "@/design/Button";
+import { WarnNote } from "@/design/states";
+
+type Stage =
+  | { kind: "idle" }
+  | { kind: "starting"; message: string }
+  | { kind: "scanning" }
+  | { kind: "verifying" }
+  | { kind: "passed" }
+  | { kind: "failed"; title: string; detail: string; canRetry: boolean };
+
+interface Hint {
+  tone: "info" | "warn";
+  text: string;
+}
+
+export interface LivenessScanProps {
+  /** Called once, only after the challenge AND the same-face check pass. */
+  onComplete: (result: LivenessResult) => void;
+  /** Optional: called on each failure (for analytics/UI); never carries face data. */
+  onFail?: (reason: string) => void;
+  className?: string;
+}
+
+const MAX_CAPTURE_WIDTH = 720;
+
+
+function cameraErrorStage(err: unknown): Stage {
+  const name = (err as { name?: string })?.name ?? "";
+  if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
+    return {
+      kind: "failed",
+      title: "Camera access is blocked",
+      detail:
+        "Allow camera access for this site in your browser's address bar or site settings, then try again. The camera feed never leaves this device.",
+      canRetry: true,
+    };
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError" || name === "DevicesNotFoundError") {
+    return {
+      kind: "failed",
+      title: "No camera found",
+      detail: "This scan needs a front-facing camera. Open this page on a phone or a laptop with a webcam.",
+      canRetry: true,
+    };
+  }
+  if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") {
+    return {
+      kind: "failed",
+      title: "The camera is busy",
+      detail: "Another app or tab is using the camera. Close it, then try again.",
+      canRetry: true,
+    };
+  }
+  return {
+    kind: "failed",
+    title: "The camera didn't start",
+    detail: err instanceof Error ? err.message : "Reload the page and try again.",
+    canRetry: true,
+  };
+}
+
+function captureFrame(video: HTMLVideoElement): HTMLCanvasElement {
+  const scale = Math.min(1, MAX_CAPTURE_WIDTH / video.videoWidth);
+  const c = document.createElement("canvas");
+  c.width = Math.round(video.videoWidth * scale);
+  c.height = Math.round(video.videoHeight * scale);
+  c.getContext("2d")?.drawImage(video, 0, 0, c.width, c.height);
+  trackCanvas(c);
+  return c;
+}
+
+/** Mean luma (0..255) of the whole frame and of the face box. */
+function measureLight(
+  video: HTMLVideoElement,
+  probe: HTMLCanvasElement,
+  face: { x0: number; y0: number; x1: number; y1: number } | null,
+) {
+  const pw = 48;
+  const ph = 36;
+  probe.width = pw;
+  probe.height = ph;
+  const ctx = probe.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(video, 0, 0, pw, ph);
+  const { data } = ctx.getImageData(0, 0, pw, ph);
+  let all = 0;
+  let faceSum = 0;
+  let faceN = 0;
+  for (let y = 0; y < ph; y++) {
+    for (let x = 0; x < pw; x++) {
+      const i = (y * pw + x) * 4;
+      const l = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      all += l;
+      if (face && x / pw >= face.x0 && x / pw <= face.x1 && y / ph >= face.y0 && y / ph <= face.y1) {
+        faceSum += l;
+        faceN++;
+      }
+    }
+  }
+  return { frame: all / (pw * ph), face: faceN ? faceSum / faceN : null };
+}
+
+const PROMPT: Record<TurnDirection, string> = {
+  left: "Turn your head to your left",
+  right: "Turn your head to your right",
+};
+
+export function LivenessScan({ onComplete, onFail, className }: LivenessScanProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const landmarkerRef = useRef<FaceLandmarker | null>(null);
+  const rafRef = useRef<number>(0);
+  const runIdRef = useRef(0);
+  const capturesRef = useRef<Partial<Record<CaptureKind, HTMLCanvasElement>>>({});
+  const passedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const onFailRef = useRef(onFail);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onFailRef.current = onFail;
+  });
+
+  const [stage, setStage] = useState<Stage>({ kind: "idle" });
+  const [prompt, setPrompt] = useState("Look straight at the camera");
+  const [direction, setDirection] = useState<TurnDirection | null>(null);
+  const [yaw, setYaw] = useState(0);
+  const [stepsDone, setStepsDone] = useState(0);
+  const [hint, setHint] = useState<Hint | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+
+  const stopCamera = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx && canvasRef.current) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  }, []);
+
+  const discardCaptures = useCallback(() => {
+    for (const c of Object.values(capturesRef.current)) if (c) wipeCanvas(c);
+    capturesRef.current = {};
+  }, []);
+
+  const fail = useCallback(
+    (title: string, detail: string) => {
+      runIdRef.current++;
+      stopCamera();
+      discardCaptures();
+      setHint(null);
+      setSecondsLeft(null);
+      setStage({ kind: "failed", title, detail, canRetry: true });
+      onFailRef.current?.(title);
+    },
+    [stopCamera, discardCaptures],
+  );
+
+  const verify = useCallback(
+    async (runId: number, order: [TurnDirection, TurnDirection]) => {
+      setStage({ kind: "verifying" });
+      const { front, left, right } = capturesRef.current;
+      if (!front || !left || !right) {
+        fail("The scan didn't finish", "Some frames were missing. Try again.");
+        return;
+      }
+      try {
+        const [f, l, r] = [
+          await describeLargestFace(front),
+          await describeLargestFace(left),
+          await describeLargestFace(right),
+        ];
+        if (runId !== runIdRef.current) return;
+        if (!f) {
+          fail("We couldn't read your face", "Face a light source, hold the phone at eye level, and try again.");
+          return;
+        }
+        if (!l || !r) {
+          fail(
+            "We lost your face while you turned",
+            "Turn just far enough for the bar to fill, and keep your whole face in the frame.",
+          );
+          return;
+        }
+        const consistency = { left: euclidean(f.descriptor, l.descriptor), right: euclidean(f.descriptor, r.descriptor) };
+        if (consistency.left > SAME_PERSON_THRESHOLD || consistency.right > SAME_PERSON_THRESHOLD) {
+          for (const d of [f, l, r]) d.descriptor.fill(0);
+          fail(
+            "The face changed during the scan",
+            "Every frame has to show the same person. Make sure only you are in front of the camera.",
+          );
+          return;
+        }
+        const reference = { descriptors: [f.descriptor, l.descriptor, r.descriptor], createdAt: Date.now() };
+        setFaceReference(reference);
+        passedRef.current = true;
+        stopCamera();
+        setStage({ kind: "passed" });
+        onCompleteRef.current({
+          passed: true,
+          reference,
+          frames: { front, left, right },
+          order,
+          consistency,
+        });
+      } catch (err) {
+        if (runId !== runIdRef.current) return;
+        fail("The face check couldn't run", err instanceof Error ? err.message : "Reload and try again.");
+      }
+    },
+    [fail, stopCamera],
+  );
+
+  const start = useCallback(async () => {
+    const runId = ++runIdRef.current;
+    passedRef.current = false;
+    discardCaptures();
+    setHint(null);
+    setStepsDone(0);
+    setDirection(null);
+    setYaw(0);
+    setPrompt("Look straight at the camera");
+
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      const title = "Camera isn't available here";
+      setStage({
+        kind: "failed",
+        title,
+        detail: window.isSecureContext ? "This browser can't use the camera. Try the latest Chrome or Safari." : "The camera needs the https address of this site.",
+        canRetry: false,
+      });
+      onFailRef.current?.(title);
+      return;
+    }
+
+    setStage({ kind: "starting", message: "Opening the camera" });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } },
+      });
+    } catch (err) {
+      if (runId === runIdRef.current) {
+        const s = cameraErrorStage(err);
+        setStage(s);
+        if (s.kind === "failed") onFailRef.current?.(s.title);
+      }
+      return;
+    }
+    if (runId !== runIdRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    streamRef.current = stream;
+    const video = videoRef.current!;
+    video.srcObject = stream;
+    try {
+      await video.play();
+    } catch {
+      /* autoplay with muted+playsInline normally succeeds */
+    }
+
+    setStage({ kind: "starting", message: "Loading the face model on this device" });
+    // Warm the recogniser in parallel; it's needed at the end.
+    void loadRecognizer().catch(() => {});
+    let vision: Awaited<ReturnType<typeof createFaceLandmarker>>["vision"];
+    try {
+      if (!landmarkerRef.current) {
+        const made = await createFaceLandmarker("VIDEO");
+        landmarkerRef.current = made.landmarker;
+        vision = made.vision;
+      } else {
+        vision = await import("@mediapipe/tasks-vision");
+      }
+    } catch (err) {
+      if (runId === runIdRef.current) {
+        fail("The face model didn't load", err instanceof Error ? err.message : "Check your connection and try again.");
+      }
+      return;
+    }
+    if (runId !== runIdRef.current) return;
+
+    const { tess, contours, irises } = meshConnections(vision);
+
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    const probe = document.createElement("canvas");
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const landmarker = landmarkerRef.current!;
+    const challenge = new HeadTurnChallenge(performance.now());
+    const order = challenge.order;
+
+    setStage({ kind: "scanning" });
+    let lastVideoTime = -1;
+    let frameNo = 0;
+    let noFaceSince = performance.now();
+    let lightHint: Hint | null = null;
+    let lastUi = 0;
+
+    const tick = () => {
+      if (runId !== runIdRef.current) return;
+      rafRef.current = requestAnimationFrame(tick);
+      if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
+      lastVideoTime = video.currentTime;
+      const now = performance.now();
+
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+
+      let result;
+      try {
+        result = landmarker.detectForVideo(video, now);
+      } catch {
+        return;
+      }
+      const faces = result.faceLandmarks ?? [];
+      const scanPhase = reduceMotion ? 0.5 : (now % 1800) / 1800;
+      drawMesh(ctx, faces, tess, contours, irises, scanPhase);
+
+      let sampleYaw: number | null = null;
+      let currentHint: Hint | null = null;
+      let box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+
+      if (faces.length > 1) {
+        currentHint = { tone: "warn", text: "Only you should be in the frame." };
+      } else if (faces.length === 1) {
+        const lm = faces[0];
+        let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+        for (const p of lm) {
+          if (p.x < x0) x0 = p.x;
+          if (p.x > x1) x1 = p.x;
+          if (p.y < y0) y0 = p.y;
+          if (p.y > y1) y1 = p.y;
+        }
+        box = { x0, y0, x1, y1 };
+        const width = x1 - x0;
+        const matrix = result.facialTransformationMatrixes?.[0]?.data;
+        const y = estimateYawDeg(lm, matrix);
+        sampleYaw = y;
+        noFaceSince = now;
+        if (challenge.phase === "center") {
+          if (width < 0.2) {
+            currentHint = { tone: "info", text: "Move a little closer." };
+            sampleYaw = null;
+          } else if (width > 0.85 || y0 < 0 || y1 > 1) {
+            currentHint = { tone: "info", text: "Move back so your whole face fits." };
+            sampleYaw = null;
+          }
+        }
+      } else if (now - noFaceSince > 2500) {
+        currentHint = { tone: "warn", text: "We can't see a face. Hold the camera at eye level." };
+      }
+
+      if (frameNo++ % 15 === 0) {
+        const light = measureLight(video, probe, box);
+        lightHint = null;
+        if (light) {
+          if (light.frame < 45 || (light.face !== null && light.face < 55)) {
+            lightHint = { tone: "warn", text: "It's too dark. Face a window or a lamp." };
+          } else if (light.face !== null && light.frame - light.face > 60) {
+            lightHint = { tone: "warn", text: "The light is behind you. Turn to face it." };
+          }
+        }
+      }
+
+      const update = challenge.update({ now, yaw: sampleYaw });
+      if (update.capture) {
+        capturesRef.current[update.capture] = captureFrame(video);
+        if (update.capture !== "front") setStepsDone((n) => n + 1);
+      }
+      if (update.failure) {
+        fail("The scan didn't pass", `${update.failure} Try again; the directions will change.`);
+        return;
+      }
+      if (challenge.phase === "passed") {
+        cancelAnimationFrame(rafRef.current);
+        void verify(runId, order);
+        return;
+      }
+
+      if (now - lastUi > 80) {
+        lastUi = now;
+        setYaw(sampleYaw ?? 0);
+        setHint(currentHint ?? lightHint);
+        setSecondsLeft(challenge.phase === "center" ? null : Math.ceil(challenge.timeLeftMs(now) / 1000));
+        if (challenge.phase === "center") {
+          setDirection(null);
+          setPrompt("Look straight at the camera");
+        } else if (challenge.phase === "turn") {
+          setDirection(challenge.direction);
+          setPrompt(PROMPT[challenge.direction]);
+        } else if (challenge.phase === "return") {
+          setDirection(null);
+          setPrompt("Now look back at the camera");
+        }
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [discardCaptures, fail, verify]);
+
+  useEffect(() => {
+    const captures = capturesRef;
+    const runIds = runIdRef;
+    return () => {
+      runIds.current++;
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      landmarkerRef.current?.close();
+      landmarkerRef.current = null;
+      // Unfinished captures never outlive the component. Passed frames are
+      // owned by the caller and wiped by clearFaceData().
+      if (!passedRef.current) {
+        for (const c of Object.values(captures.current)) if (c) wipeCanvas(c);
+      }
+      captures.current = {};
+    };
+  }, []);
+
+  const live = stage.kind === "scanning" || stage.kind === "starting";
+  const yawClamped = Math.max(-45, Math.min(45, yaw));
+  // Preview is mirrored, so the user's left is on screen-left.
+  const dotLeft = 50 - (yawClamped / 45) * 50;
+  const targetPct = (TURN_TARGET_DEG / 45) * 50;
+
+  return (
+    <section
+      className={`relative flex w-full max-w-md flex-col gap-4 ${className ?? ""}`}
+      aria-label="Live face scan"
+    >
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-frame border border-edge-strong bg-surface">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 h-full w-full -scale-x-100 object-cover opacity-75 grayscale"
+          playsInline
+          muted
+          autoPlay
+          aria-hidden="true"
+        />
+        <canvas
+          ref={canvasRef}
+          className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100 object-cover"
+          aria-hidden="true"
+        />
+
+        {/* Corner brackets frame the scan area. */}
+        <span className="pointer-events-none absolute left-5 top-5 h-7 w-7 border-l-2 border-t-2 border-fg" aria-hidden="true" />
+        <span className="pointer-events-none absolute right-5 top-5 h-7 w-7 border-r-2 border-t-2 border-fg" aria-hidden="true" />
+        <span className="pointer-events-none absolute bottom-5 left-5 h-7 w-7 border-b-2 border-l-2 border-fg" aria-hidden="true" />
+        <span className="pointer-events-none absolute bottom-5 right-5 h-7 w-7 border-b-2 border-r-2 border-fg" aria-hidden="true" />
+
+        {stage.kind !== "scanning" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-canvas/75 p-8 text-center backdrop-blur-sm">
+            {stage.kind === "idle" && (
+              <>
+                <FaceGlyph />
+                <p className="max-w-[24ch] text-lg">Look at the camera, then turn your head when asked</p>
+              </>
+            )}
+            {stage.kind === "starting" && (
+              <p className="flex items-center gap-3 text-lg">
+                <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
+                {stage.message}
+              </p>
+            )}
+            {stage.kind === "verifying" && (
+              <p className="flex items-center gap-3 text-lg">
+                <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
+                Matching every frame
+              </p>
+            )}
+            {stage.kind === "passed" && (
+              <>
+                <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+                  <circle cx="28" cy="28" r="26" fill="none" stroke="var(--safe)" strokeWidth="3" />
+                  <path d="M17 29 L25 37 L40 20" fill="none" stroke="var(--safe)" strokeWidth="3.5" strokeLinecap="round" />
+                </svg>
+                <p className="font-display text-2xl font-semibold">Face confirmed</p>
+              </>
+            )}
+            {stage.kind === "failed" && (
+              <>
+                <p className="font-display text-2xl font-semibold">{stage.title}</p>
+                <p className="max-w-[32ch] text-muted">{stage.detail}</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {stage.kind === "scanning" && (
+        <div className="flex flex-col gap-3" aria-live="polite">
+          <p className="sv-display text-[1.75rem] leading-tight sm:text-3xl">
+            {direction === "left" && <span aria-hidden="true">&larr; </span>}
+            {prompt}
+            {direction === "right" && <span aria-hidden="true"> &rarr;</span>}
+          </p>
+
+          {/* Yaw rail: the dot follows your head; the target lights up on the side to turn to. */}
+          <div className="relative h-10" aria-hidden="true">
+            <div className="absolute left-0 right-0 top-1/2 h-px bg-edge-strong" />
+            <div
+              className={`absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full ${direction === "left" ? "bg-fg" : "bg-edge-strong"}`}
+              style={{ left: `${50 - targetPct}%` }}
+            />
+            <div className="absolute left-1/2 top-1/2 h-3 w-px -translate-y-1/2 bg-muted" />
+            <div
+              className={`absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full ${direction === "right" ? "bg-fg" : "bg-edge-strong"}`}
+              style={{ left: `${50 + targetPct}%` }}
+            />
+            <div
+              className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-canvas bg-fg shadow-[0_0_0_1px_var(--text)]"
+              style={{ left: `${dotLeft}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-lg text-muted">
+            <span>
+              {stepsDone} of 2 turns{secondsLeft !== null ? `, ${secondsLeft}s left` : ""}
+            </span>
+            <span className="tabular-nums">{Math.round(Math.abs(yaw))}&deg;</span>
+          </div>
+          {hint && (
+            <div role="status">
+              {hint.tone === "warn" ? <WarnNote className="text-xl">{hint.text}</WarnNote> : <p className="text-xl">{hint.text}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(stage.kind === "idle" || (stage.kind === "failed" && stage.canRetry)) && (
+        <button
+          type="button"
+          onClick={() => void start()}
+          className={buttonClass("primary", "lg")}
+        >
+          {stage.kind === "idle" ? "Start face scan" : "Try again"}
+        </button>
+      )}
+      {live && stage.kind === "starting" && <p className="text-muted">Allow camera access when asked</p>}
+    </section>
+  );
+}
+
+function FaceGlyph() {
+  return (
+    <svg width="72" height="88" viewBox="0 0 72 88" aria-hidden="true" className="text-fg">
+      <ellipse cx="36" cy="44" rx="30" ry="40" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 5" />
+      <path d="M22 38 h8 M42 38 h8 M36 42 v12 M28 64 q8 6 16 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
