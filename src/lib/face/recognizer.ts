@@ -26,11 +26,13 @@ export function loadRecognizer(): Promise<FaceApi> {
       const ok = await tf.setBackend("webgl").catch(() => false);
       if (!ok) await tf.setBackend("cpu");
       await tf.ready();
+      console.info(`[face] recogniser backend: ${ok ? "webgl" : "cpu (slow)"}`);
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ]);
+      await warmUp(faceapi);
       return faceapi;
     })().catch((err) => {
       loading = null;
@@ -38,6 +40,31 @@ export function loadRecognizer(): Promise<FaceApi> {
     });
   }
   return loading;
+}
+
+/**
+ * Run each network once on a blank canvas. The first run compiles the GPU
+ * programs, which blocks the page for a moment; doing it here, while the
+ * person is still turning their head, keeps the final matching step smooth.
+ */
+async function warmUp(faceapi: FaceApi): Promise<void> {
+  try {
+    const blank = document.createElement("canvas");
+    blank.width = 160;
+    blank.height = 160;
+    const ctx = blank.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#777";
+      ctx.fillRect(0, 0, 160, 160);
+    }
+    await faceapi.detectAllFaces(blank, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.9, maxResults: 1 }));
+    await new Promise((r) => setTimeout(r, 0));
+    await faceapi.detectFaceLandmarks(blank);
+    await new Promise((r) => setTimeout(r, 0));
+    await faceapi.computeFaceDescriptor(blank);
+  } catch {
+    /* warm-up is best effort */
+  }
 }
 
 export interface DescribedFace {

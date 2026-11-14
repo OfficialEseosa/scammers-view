@@ -131,7 +131,8 @@ export function SpinningScan({
 
       if (!reduce) raf = requestAnimationFrame(draw);
     };
-    raf = requestAnimationFrame(draw);
+    // Draw the first frame now, so the scan is on screen even if the page is busy right after.
+    draw(performance.now());
     return () => cancelAnimationFrame(raf);
   }, [points, tess, contours, aspect]);
 

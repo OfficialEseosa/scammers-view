@@ -1,0 +1,522 @@
+/* Attack map: tidy left-to-right graph of icon tiles joined by rounded orthogonal lines. */
+
+.fm-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 460px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--sunken, var(--bg));
+  overflow: hidden;
+  color: var(--text);
+}
+
+.fm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px 0;
+  font-size: 0.9375rem;
+}
+.fm-head-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+.fm-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.fm-stats b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fm-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.fm-score::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--fm-risk, var(--muted));
+}
+
+.fm-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.fm-canvas .react-flow {
+  background: transparent;
+}
+.fm-canvas .react-flow__pane {
+  cursor: grab;
+}
+.fm-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(38% 46% at 50% 50%, color-mix(in srgb, var(--text) 5%, transparent), transparent 70%);
+}
+
+/* ---------- nodes ---------- */
+
+.fm-canvas .react-flow__node {
+  transition: transform 520ms var(--ease-out), opacity 240ms ease;
+}
+.fm-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 190px;
+  text-align: center;
+  animation: fm-pop 420ms var(--ease-out) both;
+  transition: opacity 260ms ease;
+}
+@keyframes fm-pop {
+  from {
+    opacity: 0;
+    scale: 0.86;
+  }
+}
+.fm-click {
+  cursor: pointer;
+}
+
+.fm-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  background: var(--elevated);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent),
+    0 10px 28px -14px rgb(0 0 0 / 0.7);
+  transition:
+    border-color 220ms ease,
+    box-shadow 260ms ease,
+    transform 180ms var(--ease-out);
+}
+.fm-click:hover .fm-tile {
+  transform: translateY(-2px);
+  border-color: var(--text);
+}
+.fm-icon {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  filter: var(--icon-filter, none);
+  pointer-events: none;
+}
+.fm-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 19px;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.fm-title {
+  margin-top: 10px;
+  max-width: 190px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fm-sub {
+  margin-top: 3px;
+  max-width: 190px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fm-mono {
+  font-family: var(--font-evidence);
+  font-size: 0.75rem;
+}
+
+/* you */
+.fm-you .fm-tile {
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, var(--text) 6%, transparent),
+    0 0 0 9px color-mix(in srgb, var(--text) 10%, transparent),
+    0 18px 50px -12px color-mix(in srgb, var(--text) 30%, transparent);
+}
+.fm-you .fm-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+}
+
+/* fact risk dot */
+.fm-riskdot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fm-risk, var(--muted));
+  border: 2.5px solid var(--bg);
+}
+
+/* target */
+.fm-target .fm-tile {
+  border-color: var(--danger);
+  box-shadow:
+    0 0 0 6px var(--danger-tint),
+    0 10px 28px -14px rgb(0 0 0 / 0.7);
+}
+.fm-target .fm-sub {
+  color: var(--danger-fg, var(--danger));
+}
+.fm-target.fm-blocked .fm-tile {
+  border-color: var(--safe);
+  box-shadow: 0 0 0 6px var(--safe-tint);
+}
+.fm-target.fm-blocked .fm-sub {
+  color: var(--safe-fg, var(--safe));
+}
+
+/* states */
+.fm-t-dim {
+  opacity: 0.28;
+}
+.fm-t-lit .fm-tile {
+  border-color: var(--text);
+}
+.fm-t-step .fm-tile {
+  border-color: var(--text);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--text) 16%, transparent),
+    0 0 34px -4px color-mix(in srgb, var(--text) 45%, transparent);
+}
+.fm-target.fm-t-step .fm-tile {
+  box-shadow:
+    0 0 0 6px var(--danger-tint),
+    0 0 40px -2px var(--danger);
+}
+.fm-cut .fm-tile {
+  border-style: dashed;
+  border-color: var(--safe);
+  opacity: 0.55;
+}
+.fm-cut .fm-title,
+.fm-cut .fm-sub {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.fm-cut .fm-riskdot {
+  background: var(--safe);
+}
+
+.fm-handle {
+  top: 36px !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+/* Lines meet the tile's left and right edges at its vertical centre, not the label. */
+.fm-handle.react-flow__handle-left {
+  left: 55px !important;
+  right: auto !important;
+}
+.fm-handle.react-flow__handle-right {
+  left: 135px !important;
+  right: auto !important;
+}
+.fm-you .fm-handle {
+  top: 44px !important;
+}
+.fm-you .fm-handle.react-flow__handle-left {
+  left: 47px !important;
+}
+.fm-you .fm-handle.react-flow__handle-right {
+  left: 143px !important;
+}
+
+/* ---------- edges ---------- */
+
+.fm-canvas .react-flow__edge.fm-edge .react-flow__edge-path {
+  fill: none;
+  stroke-linecap: round;
+  transition:
+    stroke 240ms ease,
+    opacity 240ms ease,
+    stroke-width 240ms ease;
+}
+.fm-canvas .fm-found .react-flow__edge-path {
+  stroke: var(--border-strong);
+  stroke-width: 1.25;
+}
+.fm-canvas .fm-attack .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--text) 62%, transparent);
+  stroke-width: 1.75;
+}
+.fm-canvas .fm-dim .react-flow__edge-path {
+  opacity: 0.16;
+}
+.fm-canvas .fm-found.fm-lit .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.fm-canvas .fm-attack.fm-lit .react-flow__edge-path {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.fm-canvas .fm-attack.fm-step .react-flow__edge-path {
+  stroke: var(--danger);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 9;
+  animation: fm-flow 900ms linear infinite;
+}
+@keyframes fm-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+.fm-canvas .fm-cutline .react-flow__edge-path {
+  stroke: var(--safe);
+  stroke-dasharray: 3 7;
+  stroke-width: 1.5;
+  animation: none;
+  opacity: 0.8;
+}
+
+/* ---------- chains, player, legend ---------- */
+
+.fm-chains {
+  display: flex;
+  gap: 8px;
+  padding: 0 22px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 120ms ease;
+}
+.fm-chip:active {
+  transform: scale(0.97);
+}
+.fm-chip-n {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--elevated);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.fm-chip-meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.fm-chip-on {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.fm-chip-on .fm-chip-n {
+  background: color-mix(in srgb, var(--bg) 14%, transparent);
+}
+.fm-chip-on .fm-chip-meta {
+  color: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.fm-chip-cut {
+  border-style: dashed;
+  border-color: var(--safe);
+}
+
+.fm-player {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 22px 12px;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--elevated);
+  animation: fm-rise 260ms var(--ease-out) both;
+}
+@keyframes fm-rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+.fm-player-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fm-player-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.fm-player-dots button.done {
+  background: var(--muted);
+}
+.fm-player-dots button.on {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px var(--danger-tint);
+}
+.fm-player-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.fm-player-step {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.fm-player-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1875rem;
+  letter-spacing: -0.01em;
+}
+.fm-player-desc {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.fm-player-cut .fm-player-dots button.on {
+  background: var(--safe);
+  box-shadow: 0 0 0 4px var(--safe-tint);
+}
+.fm-player-ctl {
+  display: flex;
+  gap: 6px;
+}
+.fm-player-ctl button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+.fm-player-ctl button:disabled {
+  opacity: 0.35;
+}
+.fm-player-ctl button:not(:disabled):hover {
+  border-color: var(--text);
+}
+
+.fm-legend {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  padding: 0 22px 14px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.fm-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.fm-legend i {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--border-strong);
+  border-radius: 2px;
+}
+.fm-legend .fm-l-attack {
+  border-color: var(--text);
+}
+.fm-legend .fm-l-cut {
+  border-top-style: dashed;
+  border-color: var(--safe);
+}
+.fm-legend .fm-l-target {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--danger);
+  border-radius: 4px;
+}
+
+.fm-compact .fm-legend,
+.fm-compact .fm-head-title {
+  display: none;
+}
+.fm-compact .fm-head {
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-node,
+  .fm-player {
+    animation: none;
+  }
+  .fm-canvas .react-flow__node {
+    transition: none;
+  }
+  .fm-canvas .fm-attack.fm-step .react-flow__edge-path {
+    animation: none;
+  }
+}
