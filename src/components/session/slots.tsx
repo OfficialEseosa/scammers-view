@@ -47,6 +47,16 @@ export const PlacesSlot = dynamic(() => import("@/features/places/PlacesMap").th
   loading: () => <Skeleton className="h-[60vh] min-h-[360px]" label="Loading places" />,
 });
 
+export const CheckSlot = dynamic(() => import("@/features/check").then((m) => m.ScamCheck), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64" label="Loading the scam check" />,
+});
+
+export const CallSlot = dynamic(() => import("@/features/call").then((m) => m.PracticeCall), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64" label="Loading practice call" />,
+});
+
 export const FixListSlot = dynamic(() => import("@/features/fixes/FixList").then((m) => m.FixList), {
   ssr: false,
   loading: () => <Skeleton className="h-96" label="Ranking your fixes" />,

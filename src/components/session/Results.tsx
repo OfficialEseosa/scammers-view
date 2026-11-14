@@ -17,7 +17,7 @@ import { planFixes } from "@/lib/fixes/plan";
 import { computeExposure } from "@/lib/fixes/score";
 import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
-import { AttackMapSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
+import { AttackMapSlot, CallSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
   function Loading() {
@@ -122,6 +122,18 @@ export function Results() {
           <div id="video-context" className="scroll-mt-4 border-t border-edge pt-12 empty:hidden">
             <VideoContextSlot findings={scan.findings} masked={masked} onFindings={setVideoFindings} />
           </div>
+        </div>
+      </Panel>
+
+      <Panel id="call" active={tab} keep={visited}>
+        <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
+          <CallSlot findings={findings} chains={scan.chains} score={scan.score} subjectName={subjectName} masked={masked} initialScenario={s.callScenario} />
+        </div>
+      </Panel>
+
+      <Panel id="check" active={tab} keep={visited}>
+        <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
+          <CheckSlot onPractise={s.practiseCall} />
         </div>
       </Panel>
 

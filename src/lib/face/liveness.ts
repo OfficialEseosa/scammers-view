@@ -7,7 +7,7 @@ import type { TurnDirection } from "./types";
  */
 
 export const TURN_TARGET_DEG = 28;
-export const CENTER_DEG = 10;
+export const CENTER_DEG = 15;
 const MID_LOW_DEG = 8;
 const WRONG_WAY_DEG = 15;
 
@@ -17,7 +17,7 @@ const RETURN_HOLD_MS = 300;
 const WRONG_WAY_MS = 400;
 const FACE_LOST_MS = 1200;
 
-export const CENTER_TIMEOUT_MS = 12_000;
+export const CENTER_TIMEOUT_MS = 20_000;
 export const TURN_TIMEOUT_MS = 8_000;
 export const RETURN_TIMEOUT_MS = 6_000;
 

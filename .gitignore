@@ -1,6 +1,8 @@
 # secrets
 .env
 .env.*
+*.env
+env.*
 !.env.example
 
 # deps and builds

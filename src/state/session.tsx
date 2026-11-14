@@ -10,6 +10,7 @@ import { clearVoiceData } from "@/lib/voice-exposure/store";
 import { disposeVoiceEngine } from "@/lib/voice-exposure/client";
 import { computeExposure } from "@/lib/fixes/score";
 import { leave } from "@/app/actions";
+import type { CallScenarioId } from "@/lib/call/schema";
 
 /**
  * One in-memory store for the whole session: scan results, fixes the user ticked,
@@ -19,15 +20,17 @@ import { leave } from "@/app/actions";
 
 export type Stage = "face" | "live" | "results" | "ended";
 export type FaceStatus = "pending" | "verified" | "skipped";
-export type ResultsTab = "fixes" | "map" | "practice" | "quiz" | "photos" | "places" | "breach" | "campus" | "family";
+export type ResultsTab = "fixes" | "map" | "practice" | "call" | "check" | "quiz" | "photos" | "places" | "breach" | "campus" | "family";
 
 /** `more`: listed under the "More" menu instead of the main tab row. */
 export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated: boolean; more?: boolean }[] = [
   { id: "fixes", label: "Break the chain", short: "Fixes", gated: false },
   { id: "map", label: "How they'd get in", short: "Attack", gated: true },
   { id: "practice", label: "Practice attacks", short: "Practice", gated: true },
+  { id: "call", label: "Practice call", short: "Call", gated: true },
   { id: "photos", label: "Photos of you", short: "Photos", gated: true },
   { id: "places", label: "Where you can be found", short: "Places", gated: true },
+  { id: "check", label: "Is this a scam?", short: "Check", gated: false, more: true },
   { id: "quiz", label: "Test yourself", short: "Quiz", gated: true, more: true },
   { id: "breach", label: "Breaches", short: "Breaches", gated: false, more: true },
   { id: "campus", label: "Campus scams", short: "Campus", gated: true, more: true },
@@ -58,6 +61,15 @@ export interface Session {
   setMasked: (m: boolean) => void;
   ending: boolean;
   endSession: () => void;
+  /** Scenario picked from the scam checker, waiting for the call tab. */
+  callScenario: CallScenarioId | null;
+  /** Opens the practice call tab with this scenario (unlocking the gated tabs). */
+  practiseCall: (s: CallScenarioId) => void;
+}
+
+/** Practice-call tickets live in server memory; ask for them to be dropped. */
+function dropCallTickets() {
+  void fetch("/api/call", { method: "DELETE", keepalive: true }).catch(() => {});
 }
 
 const Ctx = createContext<Session | null>(null);
@@ -77,6 +89,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
   const [removed, setRemoved] = useState<string[]>(EMPTY);
   const [tab, setTab] = useState<ResultsTab>("fixes");
   const [unlocked, setUnlocked] = useState(false);
+  const [callScenario, setCallScenario] = useState<CallScenarioId | null>(null);
   const [masked, setMasked] = usePresentationMode();
   const [ending, startEnding] = useTransition();
 
@@ -88,6 +101,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
       clearFaceData();
       clearVoiceData();
       disposeVoiceEngine();
+      dropCallTickets();
     };
     window.addEventListener("pagehide", wipe);
     return () => {
@@ -111,8 +125,10 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
     clearFaceData();
     clearVoiceData();
     disposeVoiceEngine();
+    dropCallTickets();
     setRemoved(EMPTY);
     setUnlocked(false);
+    setCallScenario(null);
     setTab("fixes");
     setFace("pending");
     setStage("ended"); // closes the stream and wipes scan state
@@ -142,8 +158,15 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
       setMasked,
       ending,
       endSession,
+      callScenario,
+      practiseCall: (sc: CallScenarioId) => {
+        setCallScenario(sc);
+        setUnlocked(true);
+        setTab("call");
+        window.scrollTo({ top: 0 });
+      },
     }),
-    [mock, subjectName, stage, face, scan, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession],
+    [mock, subjectName, stage, face, scan, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, callScenario],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

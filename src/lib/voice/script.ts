@@ -12,7 +12,7 @@ export interface VoicemailScript {
 const PRACTICE_TAG = "This was a practice voicemail from Scammer's View.";
 const USEFUL: Finding["category"][] = ["relative", "pet", "school", "location", "employer", "interest", "schedule", "handle"];
 
-function pick(findings: Finding[]): Finding[] {
+export function pick(findings: Finding[]): Finding[] {
   return [...findings]
     .filter((f) => USEFUL.includes(f.category) && f.value.trim().length > 0 && f.value.length < 80)
     .sort((a, b) => b.riskWeight - a.riskWeight)

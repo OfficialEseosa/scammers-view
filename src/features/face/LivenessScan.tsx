@@ -374,7 +374,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         sampleYaw = y;
         noFaceSince = now;
         if (challenge.phase === "center") {
-          if (width < 0.2) {
+          if (width < 0.12) {
             currentHint = { tone: "info", text: "Move a little closer." };
             sampleYaw = null;
           } else if (width > 0.85 || y0 < 0 || y1 > 1) {

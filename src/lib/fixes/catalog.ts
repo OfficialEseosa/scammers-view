@@ -299,6 +299,44 @@ function twoFactorSteps(findings: Finding[]): { steps: string[]; links: FixLink[
   return { steps: out, links };
 }
 
+/* ------------------------------ reference list ------------------------------ */
+
+/** Every fix as generic reference text (no findings), for search indexes. */
+export function fixReference(): { id: string; kind: FixTemplate["kind"]; title: string; steps: string[]; link?: string; keywords: string[] }[] {
+  return [
+    ...Object.values(PLATFORMS).map((p) => ({
+      id: `fix:privacy:${p.key}`,
+      kind: "privacy" as const,
+      title: p.title,
+      steps: p.steps,
+      link: p.link,
+      keywords: [p.name, "privacy", "private account", "hide profile"],
+    })),
+    ...(Object.entries(Q_COPY) as [QKind, (typeof Q_COPY)[QKind]][]).map(([q, c]) => ({
+      id: `fix:question:${q}`,
+      kind: "security-question" as const,
+      title: c.title,
+      steps: ["Change the answer to a random phrase and store it in your password manager.", "Delete the question or add an authenticator app where the site allows it."],
+      keywords: ["security question", "recovery answer", c.answer],
+    })),
+    ...Object.entries(BROKERS).map(([domain, b]) => ({
+      id: `fix:broker:${slug(domain)}`,
+      kind: "broker" as const,
+      title: `Get removed from ${b.name}`,
+      steps: [`Open ${b.name}'s opt-out page and paste your listing address.`, "Confirm through the email or phone check they send.", "Check again in two weeks."],
+      link: b.optout,
+      keywords: [b.name, domain, "data broker", "people search", "opt out", "remove listing"],
+    })),
+    {
+      id: "fix:2fa:checklist",
+      kind: "2fa" as const,
+      title: "Turn on app-based 2FA",
+      steps: ["Switch each account to an authenticator app or passkey instead of SMS.", "Save backup codes in your password manager."],
+      keywords: ["two-factor", "2fa", "authenticator", "passkey", "verification code"],
+    },
+  ];
+}
+
 /* ------------------------------ candidates ------------------------------ */
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

@@ -6,9 +6,23 @@ const MODEL = "/models/mediapipe/face_landmarker.task";
 
 export type VisionModule = typeof import("@mediapipe/tasks-vision");
 
+// The wasm runtime writes routine "INFO:" lines to stderr, which reach console.error
+// and show up as errors in the Next.js dev overlay.
+let quieted = false;
+function quietWasmInfo() {
+  if (quieted) return;
+  quieted = true;
+  const error = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].startsWith("INFO: ")) return;
+    error(...args);
+  };
+}
+
 export async function createFaceLandmarker(
   mode: "VIDEO" | "IMAGE" = "VIDEO",
 ): Promise<{ landmarker: FaceLandmarker; vision: VisionModule }> {
+  quietWasmInfo();
   const vision = await import("@mediapipe/tasks-vision");
   const fileset = await vision.FilesetResolver.forVisionTasks(WASM_BASE);
   const make = (delegate: "GPU" | "CPU") =>

@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test:scan": "tsx --test src/lib/scan/scan.test.mjs",
     "test:llm": "tsx --test src/lib/llm/gemini.test.ts",
-    "test:voice-exposure": "tsx --test src/lib/voice-exposure/voice-exposure.test.ts"
+    "test:voice-exposure": "tsx --test src/lib/voice-exposure/voice-exposure.test.ts",
+    "test:call": "tsx --test src/lib/call/call.test.ts",
+    "test:search": "tsx --test src/lib/search/search.test.ts",
+    "index:typesense": "tsx scripts/index-typesense.ts"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",
@@ -20,6 +23,8 @@
     "clsx": "^2.1.1",
     "cn": "^0.5.2",
     "leaflet": "^1.9.4",
+    "livekit-client": "^2.24.1",
+    "livekit-server-sdk": "^2.19.3",
     "lucide-react": "^1.72.0",
     "motion": "^14.14.0",
     "next": "16.4.6",

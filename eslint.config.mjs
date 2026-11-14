@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/**", ".cache/**",
+    // Separate package with its own tsconfig.
+    "agent/**",
   ]),
 ]);
 
