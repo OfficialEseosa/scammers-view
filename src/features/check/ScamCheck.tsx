@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { CallScenarioId } from "@/lib/call/schema";
+import type { Reported } from "@/lib/reputation";
 import type { FixHit, Span } from "@/lib/search";
+import { ReportedBox } from "./ReportedBox";
 import { Button } from "@/design/Button";
 import { Card } from "@/design/Card";
 import { Highlight } from "@/design/Highlighter";
@@ -12,6 +14,10 @@ import { cn } from "@/design/utils";
 export type ScamCheckProps = {
   /** Called with the closest practice call when the user wants to rehearse a match live. */
   onPractise?: (scenario: CallScenarioId) => void;
+  /** Label for the practice button (default "Practise this one live"). */
+  practiseLabel?: string;
+  /** Message to check straight away, e.g. one shared from another app. */
+  initialText?: string;
 };
 
 type Match = {
@@ -26,7 +32,7 @@ type Match = {
   practice?: CallScenarioId;
 };
 
-type CheckResult = { engine: "typesense" | "local"; level: "high" | "some" | "low"; spans: Span[]; matches: Match[] };
+type CheckResult = { engine: "typesense" | "local"; level: "high" | "some" | "low"; spans: Span[]; matches: Match[]; reported?: Reported };
 
 type State = { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; text: string; data: CheckResult };
 
@@ -40,29 +46,46 @@ const LEVEL: Record<CheckResult["level"], { label: string; className: string }> 
   low: { label: "No obvious warning signs", className: "border-edge-strong text-muted" },
 };
 
-export function ScamCheck({ onPractise }: ScamCheckProps) {
-  const [text, setText] = useState("");
-  const [state, setState] = useState<State>({ status: "idle" });
+async function requestCheck(body: string): Promise<State> {
+  try {
+    const res = await fetch("/api/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: body }) });
+    if (!res.ok) {
+      const message =
+        res.status === 400 ? "Paste up to 4,000 characters." : res.status === 429 ? "That's a lot of checks. Try again in a little while." : "The check didn't run.";
+      return { status: "error", message };
+    }
+    return { status: "ready", text: body, data: (await res.json()) as CheckResult };
+  } catch {
+    return { status: "error", message: "Couldn't reach the server." };
+  }
+}
+
+export function ScamCheck({ onPractise, practiseLabel, initialText }: ScamCheckProps) {
+  const initial = initialText?.trim().slice(0, 4000) ?? "";
+  const [text, setText] = useState(initial);
+  const [state, setState] = useState<State>(initial ? { status: "loading" } : { status: "idle" });
   const req = useRef(0);
 
-  async function check(e?: FormEvent) {
+  function run(body: string) {
+    const id = ++req.current;
+    void requestCheck(body).then((next) => {
+      if (id === req.current) setState(next);
+    });
+  }
+
+  function check(e?: FormEvent) {
     e?.preventDefault();
     const body = text.trim();
     if (!body) return;
-    const id = ++req.current;
     setState({ status: "loading" });
-    try {
-      const res = await fetch("/api/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: body }) });
-      if (id !== req.current) return;
-      if (!res.ok) {
-        setState({ status: "error", message: res.status === 400 ? "Paste up to 4,000 characters." : "The check didn't run." });
-        return;
-      }
-      setState({ status: "ready", text: body, data: (await res.json()) as CheckResult });
-    } catch {
-      if (id === req.current) setState({ status: "error", message: "Couldn't reach the server." });
-    }
+    run(body);
   }
+
+  useEffect(() => {
+    if (initial) run(initial);
+    // Runs once per mount; callers remount (key) to check a different message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <section aria-label="Is this a scam?" className="flex flex-col gap-8">
@@ -96,14 +119,24 @@ export function ScamCheck({ onPractise }: ScamCheckProps) {
       </form>
 
       {state.status === "error" && <ErrorState title={state.message} action={<Button variant="secondary" onClick={() => void check()}>Try again</Button>} />}
-      {state.status === "ready" && <CheckReport text={state.text} data={state.data} onPractise={onPractise} />}
+      {state.status === "ready" && <CheckReport text={state.text} data={state.data} onPractise={onPractise} practiseLabel={practiseLabel} />}
 
       <FixSearch />
     </section>
   );
 }
 
-function CheckReport({ text, data, onPractise }: { text: string; data: CheckResult; onPractise?: (s: CallScenarioId) => void }) {
+function CheckReport({
+  text,
+  data,
+  onPractise,
+  practiseLabel = "Practise this one live",
+}: {
+  text: string;
+  data: CheckResult;
+  onPractise?: (s: CallScenarioId) => void;
+  practiseLabel?: string;
+}) {
   const level = LEVEL[data.level];
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-10">
@@ -119,6 +152,7 @@ function CheckReport({ text, data, onPractise }: { text: string; data: CheckResu
             ))}
           </ul>
         )}
+        <ReportedBox reported={data.reported} />
       </Card>
 
       <div className="flex flex-col gap-4">
@@ -150,7 +184,7 @@ function CheckReport({ text, data, onPractise }: { text: string; data: CheckResu
             </div>
             {m.practice && onPractise && (
               <Button variant="secondary" className="w-fit" onClick={() => onPractise(m.practice!)}>
-                Practise this one live
+                {practiseLabel}
               </Button>
             )}
           </Card>

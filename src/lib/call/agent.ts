@@ -118,7 +118,6 @@ async function modelLine(state: CallState, phase: Exclude<Phase, "done">): Promi
   const transcript = state.transcript.map((l) => `${l.speaker === "scammer" ? "YOU" : "THEM"}: ${l.text}`).join("\n");
   const out = await generateJson({
     model: process.env.GEMINI_MODEL_CALL?.trim() || MODELS.fast,
-    thinking: "minimal",
     maxOutputTokens: 400,
     timeoutMs: 8000,
     schema: LineOut,

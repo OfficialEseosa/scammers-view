@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "public/**", ".cache/**",
     // Separate package with its own tsconfig.
     "agent/**",
+    // Plain-JS Chrome extension, loaded unpacked; not part of the Next build.
+    "extension/**",
   ]),
 ]);
 

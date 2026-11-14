@@ -17,6 +17,9 @@ import { planFixes } from "@/lib/fixes/plan";
 import { computeExposure } from "@/lib/fixes/score";
 import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
+import { FindingFeed } from "@/components/scan/FindingFeed";
+import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
+import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
 import { AttackMapSlot, CallSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
@@ -48,12 +51,13 @@ export function Results() {
   const [matchedPhotos, setMatchedPhotos] = useState<Finding[]>([]);
   const [photoFindings, setPhotoFindings] = useState<Finding[]>([]);
   const [videoFindings, setVideoFindings] = useState<Finding[]>([]);
+  const { notMeIds } = s;
   const findings = useMemo(() => {
     const extra = [...breachFindings, ...voiceFindings, ...photoFindings, ...videoFindings];
     if (!extra.length) return scan.findings;
     const ids = new Set(scan.findings.map((f) => f.id));
-    return [...scan.findings, ...extra.filter((f) => !ids.has(f.id))];
-  }, [scan.findings, breachFindings, voiceFindings, photoFindings, videoFindings]);
+    return [...scan.findings, ...extra.filter((f) => !ids.has(f.id) && !notMeIds.has(f.id))];
+  }, [scan.findings, breachFindings, voiceFindings, photoFindings, videoFindings, notMeIds]);
 
   const go = (t: ResultsTab) => {
     setTab(t);
@@ -132,7 +136,11 @@ export function Results() {
       </Panel>
 
       <Panel id="check" active={tab} keep={visited}>
-        <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-8 sm:px-8">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-edge bg-surface p-4">
+            <GmailButton />
+            <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
+          </div>
           <CheckSlot onPractise={s.practiseCall} />
         </div>
       </Panel>
@@ -147,7 +155,8 @@ export function Results() {
       <Panel id="photos" active={tab} keep={visited}>
         <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
           {s.face === "skipped" && <WarnNote className="mb-6">Face match is off</WarnNote>}
-          <PhotoMatchesSlot findings={findings} clearOnUnmount={false} onMatchedChange={setMatchedPhotos} />
+          <PhotoMatchesSlot findings={findings} clearOnUnmount={false} onMatchedChange={setMatchedPhotos} onNotMe={s.markNotMe} />
+          <HiddenNotMe masked={masked} className="mt-6" />
           <PhotoContextSlot photos={matchedPhotos} masked={masked} onFindings={setPhotoFindings} className="mt-12 border-t border-edge pt-12" />
           <PhotoGrid findings={findings} />
         </div>
@@ -281,7 +290,7 @@ function AutoStartQuiz() {
 
 /** When face match is off, still show which photos are public (blurred under presentation mode). */
 function PhotoGrid({ findings }: { findings: Finding[] }) {
-  const { face, masked } = useSession();
+  const { face, masked, markNotMe } = useSession();
   const photos = findings.filter((f) => f.imageUrl);
   if (face !== "skipped" || !photos.length) return null;
   return (
@@ -290,7 +299,10 @@ function PhotoGrid({ findings }: { findings: Finding[] }) {
         <li key={f.id} className="sv-card overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote hosts */}
           <img src={f.imageUrl} alt="" referrerPolicy="no-referrer" className={`aspect-[4/3] w-full object-cover ${masked ? "blur-lg grayscale" : ""}`} />
-          <p className="truncate px-3 py-2 text-sm text-muted">{f.label}</p>
+          <div className="flex items-center gap-2 py-1.5 pl-3 pr-1.5">
+            <p className="min-w-0 flex-1 truncate text-sm text-muted">{f.label}</p>
+            <NotMeButton finding={f} onNotMe={markNotMe} />
+          </div>
         </li>
       ))}
     </ul>
@@ -307,30 +319,44 @@ function Panel({ id, active, keep, children }: { id: ResultsTab; active: Results
 }
 
 function Overview({ findings }: { findings: Finding[] }) {
-  const { scan, liveScore } = useSession();
-  if (!findings.length) return null;
+  const { scan, liveScore, masked, markNotMe, notMe } = useSession();
+  if (!findings.length && !notMe.length) return null;
   return (
     <section aria-labelledby="overview-h" className="mx-4 mt-16 sm:mx-0">
       <RedactedRule />
       <h2 id="overview-h" className="sv-display mt-5 text-[clamp(1.8rem,3.6vw,2.4rem)]">
         Your file
       </h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-        <Card className="flex flex-col">
-          <h3 className="text-sm font-medium text-muted">Risk by category</h3>
-          <ExposureRadar findings={findings} className="mt-2" />
+      {findings.length > 0 && (
+        <Card flush className="mt-6 overflow-hidden">
+          <div className="px-4 pt-4">
+            <h3 className="text-sm font-medium text-muted">What we found ({findings.length})</h3>
+            <p className="mt-1 text-sm text-muted">Something here isn&apos;t you? Mark it &ldquo;Not me&rdquo; and it leaves your score, map and fixes.</p>
+          </div>
+          <div className="mt-3 border-t border-edge">
+            <FindingFeed findings={findings} masked={masked} running={false} onNotMe={markNotMe} selectable />
+          </div>
         </Card>
-        <div className="grid gap-4">
-          <Card>
-            <h3 className="text-sm font-medium text-muted">Facts by risk</h3>
-            <RiskHistogram findings={findings} className="mt-4" />
+      )}
+      <HiddenNotMe masked={masked} className="mt-4" />
+      {findings.length > 0 && (
+        <div className="mt-6 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <Card className="flex flex-col">
+            <h3 className="text-sm font-medium text-muted">Risk by category</h3>
+            <ExposureRadar findings={findings} className="mt-2" />
           </Card>
-          <Card>
-            <h3 className="text-sm font-medium text-muted">Facts by source</h3>
-            <SourceBars findings={findings} className="mt-4" />
-          </Card>
+          <div className="grid gap-4">
+            <Card>
+              <h3 className="text-sm font-medium text-muted">Facts by risk</h3>
+              <RiskHistogram findings={findings} className="mt-4" />
+            </Card>
+            <Card>
+              <h3 className="text-sm font-medium text-muted">Facts by source</h3>
+              <SourceBars findings={findings} className="mt-4" />
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
       {(liveScore || scan.score) && (
         <div className="mt-4">
           <ChangeWatch findings={findings} score={liveScore?.score ?? scan.score?.score ?? 0} />

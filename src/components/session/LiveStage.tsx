@@ -6,6 +6,9 @@ import type { SourceType } from "@/lib/types";
 import type { SourceStatus } from "@/hooks/useScanStream";
 import { SOURCE_LABEL, SOURCE_ORDER } from "@/components/scan/meta";
 import { FindingFeed } from "@/components/scan/FindingFeed";
+import { HiddenNotMe } from "@/components/scan/NotMe";
+import { useScanEta } from "@/components/scan/eta";
+import { LoadingDots } from "@/design/LoadingDots";
 import { useSession } from "@/state/session";
 import { AttackMapSlot } from "@/components/session/slots";
 import { SegmentedTabs } from "@/design/SegmentedTabs";
@@ -21,7 +24,8 @@ import { cn } from "@/design/utils";
 const AUTO_ADVANCE_S = 6;
 
 export function LiveStage() {
-  const { scan, masked, subjectName, setStage, liveScore } = useSession();
+  const { scan, masked, subjectName, setStage, liveScore, markNotMe } = useSession();
+  const eta = useScanEta(scan);
   const [view, setView] = useState<"map" | "feed">("map");
   const running = scan.phase === "connecting" || scan.phase === "running";
   const done = scan.phase === "done";
@@ -36,7 +40,7 @@ export function LiveStage() {
       <DotField className="-z-10" activity={running ? 0.9 : 0} fade="radial" />
       <div className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-3 px-3 pb-4 pt-3 sm:px-6 lg:grid lg:h-[calc(100dvh-4.25rem)] lg:min-h-[560px] lg:flex-none lg:grid-cols-[minmax(0,1fr)_25rem] lg:grid-rows-[minmax(0,1fr)] lg:gap-5 lg:pb-5">
         <div className="lg:hidden">
-          <Status compact />
+          <Status compact eta={eta.text} />
         </div>
 
         <SegmentedTabs
@@ -65,7 +69,7 @@ export function LiveStage() {
 
         <aside className={cn("flex min-h-0 flex-col gap-3 lg:col-start-2 lg:row-start-1", view === "feed" ? "" : "hidden lg:flex")}>
           <div className="hidden lg:block">
-            <Status />
+            <Status eta={eta.text} />
           </div>
           <AnimatePresence>{done && <motion.div key="done" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE_OUT }}>{banner}</motion.div>}</AnimatePresence>
           {scan.phase === "error" && (
@@ -85,7 +89,8 @@ export function LiveStage() {
             />
           )}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-card border border-edge bg-canvas/90 backdrop-blur-sm">
-            <FindingFeed findings={scan.findings} masked={masked} running={running} />
+            <FindingFeed findings={scan.findings} masked={masked} running={running} onNotMe={markNotMe} />
+            <HiddenNotMe masked={masked} className="m-3" />
           </div>
         </aside>
 
@@ -95,18 +100,31 @@ export function LiveStage() {
   );
 }
 
-function Status({ compact = false }: { compact?: boolean }) {
+function Status({ compact = false, eta }: { compact?: boolean; eta: string | null }) {
   const { scan, liveScore } = useSession();
   const running = scan.phase === "connecting" || scan.phase === "running";
   const headline = scan.phase === "error" ? "Stopped" : scan.phase === "done" ? "Scan complete" : scan.message;
   return (
-    <div className="sv-card bg-canvas/90 p-4 backdrop-blur-sm" role="status" aria-live="polite">
+    <div className="sv-card bg-canvas/90 p-4 backdrop-blur-sm">
       <div className="flex items-center gap-4">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" role="status" aria-live="polite">
           <p className="flex items-center gap-2 text-sm text-muted">
             {running && <span aria-hidden className="sv-pulse size-2 shrink-0 rounded-full bg-fg" />}
-            <span className="truncate">{headline}</span>
+            <span className="truncate">
+              {headline}
+              {running && <LoadingDots />}
+            </span>
           </p>
+          {running && (
+            <p className="mt-1 text-sm text-fg">
+              {eta ?? (
+                <>
+                  Estimating time left
+                  <LoadingDots />
+                </>
+              )}
+            </p>
+          )}
           <div className="mt-2 flex items-baseline gap-5">
             <p>
               <span className="sv-num text-4xl leading-none">{scan.findings.length}</span>

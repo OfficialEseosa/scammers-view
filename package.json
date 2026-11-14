@@ -12,6 +12,9 @@
     "test:voice-exposure": "tsx --test src/lib/voice-exposure/voice-exposure.test.ts",
     "test:call": "tsx --test src/lib/call/call.test.ts",
     "test:search": "tsx --test src/lib/search/search.test.ts",
+    "test:check": "tsx --test src/lib/check/check.test.ts",
+    "test:reputation": "tsx --test src/lib/reputation/reputation.test.ts",
+    "test:gmail": "tsx --test src/lib/gmail/gmail.test.ts",
     "index:typesense": "tsx scripts/index-typesense.ts"
   },
   "dependencies": {

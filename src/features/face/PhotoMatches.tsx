@@ -5,6 +5,7 @@ import { proxiedUrl } from "@/lib/face/image";
 import { clearFaceData } from "@/lib/face/store";
 import type { FaceReference, MatchResult } from "@/lib/face/types";
 import type { Finding } from "@/lib/types";
+import { LoadingDots } from "@/design/LoadingDots";
 import { useFaceReference, usePhotoMatches, type PhotoMatchState } from "./usePhotoMatches";
 
 export interface PhotoMatchesProps {
@@ -18,6 +19,8 @@ export interface PhotoMatchesProps {
   showDistances?: boolean;
   /** Receives the photos matched to the user so far (for the Gemini photo reading under them). */
   onMatchedChange?: (matched: Finding[]) => void;
+  /** Adds a "Not me" action to each matched photo. */
+  onNotMe?: (fs: Finding[]) => void;
   className?: string;
 }
 
@@ -84,14 +87,26 @@ function Distance({ result }: { result?: MatchResult }) {
   );
 }
 
-function MatchedCard({ item, showDistances }: { item: PhotoMatchState; showDistances?: boolean }) {
+function MatchedCard({ item, showDistances, onNotMe }: { item: PhotoMatchState; showDistances?: boolean; onNotMe?: (fs: Finding[]) => void }) {
   const { finding, result } = item;
   const href = safeHref(finding.sourceUrl);
   return (
     <li className="sv-card overflow-hidden">
       <Photo url={finding.imageUrl!} alt={finding.label || "Photo that shows you"} result={result} />
       <div className="flex flex-col gap-1 p-4">
-        <p className="font-medium text-fg">{finding.sourceTitle || finding.label}</p>
+        <div className="flex items-start gap-3">
+          <p className="min-w-0 flex-1 font-medium text-fg">{finding.sourceTitle || finding.label}</p>
+          {onNotMe && (
+            <button
+              type="button"
+              onClick={() => onNotMe([finding])}
+              aria-label={`Not me: hide ${finding.label || "this photo"}`}
+              className="sv-press -mt-2 inline-flex min-h-11 shrink-0 items-center rounded-control border border-edge px-3 text-sm font-medium text-muted hover:border-fg hover:text-fg"
+            >
+              Not me
+            </button>
+          )}
+        </div>
         <p className="text-sm text-muted">
           {href ? (
             <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-edge underline-offset-4 hover:text-fg">
@@ -119,6 +134,7 @@ export function PhotoMatches({
   clearOnUnmount = true,
   showDistances = false,
   onMatchedChange,
+  onNotMe,
   className,
 }: PhotoMatchesProps) {
   const stored = useFaceReference();
@@ -157,7 +173,12 @@ export function PhotoMatches({
           {!reference
             ? "Needs the live face scan."
             : running
-              ? `Checking ${items.length - pending.length + 1} of ${items.length} photos on this device.`
+              ? (
+                  <>
+                    Checking {items.length - pending.length + 1} of {items.length} photos on this device
+                    <LoadingDots />
+                  </>
+                )
               : items.length === 0
                 ? "No photos to check."
                 : "Matched on this device. Nothing uploaded."}
@@ -167,7 +188,7 @@ export function PhotoMatches({
       {matched.length > 0 && (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {matched.map((item) => (
-            <MatchedCard key={item.finding.id} item={item} showDistances={showDistances} />
+            <MatchedCard key={item.finding.id} item={item} showDistances={showDistances} onNotMe={onNotMe} />
           ))}
         </ul>
       )}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Is this a scam?</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <h1><img src="icons/32.png" alt="" /> Is this a scam?</h1>
+    <div class="stack">
+      <div id="result" class="stack" aria-live="polite">
+        <p class="muted">Select text or a link on any page, right-click, and choose “Check with Scammer’s View”. Or paste a message below.</p>
+      </div>
+      <form id="paste" class="stack">
+        <label for="text" class="muted small">Message to check (never stored)</label>
+        <textarea id="text" maxlength="4000" placeholder="Paste the message here"></textarea>
+        <button type="submit">Check it</button>
+      </form>
+    </div>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

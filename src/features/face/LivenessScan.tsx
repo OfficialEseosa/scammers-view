@@ -12,6 +12,7 @@ import { describeLargestFace, euclidean, loadRecognizer } from "@/lib/face/recog
 import { setFaceReference, trackCanvas, wipeCanvas } from "@/lib/face/store";
 import type { LivenessResult, TurnDirection } from "@/lib/face/types";
 import { buttonClass } from "@/design/Button";
+import { LoadingDots } from "@/design/LoadingDots";
 import { WarnNote } from "@/design/states";
 
 type Stage =
@@ -555,7 +556,10 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
                 ) : (
                   <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
                 )}
-                <p className="text-lg">Matching your scan</p>
+                <p className="text-lg" role="status">
+                  Matching scan
+                  <LoadingDots />
+                </p>
               </>
             )}
             {stage.kind === "passed" && (

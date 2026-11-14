@@ -5,12 +5,14 @@ import { SessionBar } from "@/components/session/SessionBar";
 import { FaceStep } from "@/components/session/FaceStep";
 import { LiveStage } from "@/components/session/LiveStage";
 import { Results } from "@/components/session/Results";
+import { NotMeUndoToast } from "@/components/scan/NotMe";
 
 export function ScanScreen({ name, mock }: { name: string; mock: boolean }) {
   return (
     <SessionProvider mock={mock} subjectName={name}>
       <SessionBar />
       <Flow />
+      <NotMeUndoToast />
     </SessionProvider>
   );
 }

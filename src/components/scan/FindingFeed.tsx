@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Finding } from "@/lib/types";
 import { ANCHOR_LABEL, hostOf, safeHref } from "@/components/scan/meta";
@@ -9,6 +10,7 @@ import { RedactedValue } from "@/design/RedactedValue";
 import { AnchorBadge, ConfidenceMeter, RiskDot } from "@/design/Badge";
 import { weightLevel } from "@/design/risk";
 import { EASE_OUT, usePrefersReducedMotion } from "@/design/motion";
+import { NotMeButton } from "@/components/scan/NotMe";
 
 function Row({ f, masked, all }: { f: Finding; masked: boolean; all: Finding[] }) {
   const href = safeHref(f.sourceUrl);
@@ -61,8 +63,36 @@ function Row({ f, masked, all }: { f: Finding; masked: boolean; all: Finding[] }
   );
 }
 
-export function FindingFeed({ findings, masked, running }: { findings: Finding[]; masked: boolean; running: boolean }) {
+export function FindingFeed({
+  findings,
+  masked,
+  running,
+  onNotMe,
+  selectable = false,
+}: {
+  findings: Finding[];
+  masked: boolean;
+  running: boolean;
+  /** Adds a "Not me" action per row (and bulk marking when `selectable`). */
+  onNotMe?: (fs: Finding[]) => void;
+  selectable?: boolean;
+}) {
   const reduced = usePrefersReducedMotion();
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const bulk = selectable && !!onNotMe;
+  const chosen = findings.filter((f) => picked.has(f.id));
+  const toggle = (id: string) =>
+    setPicked((cur) => {
+      const next = new Set(cur);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setPicked(new Set());
+  };
+
   if (findings.length === 0) {
     return running ? (
       <div className="flex flex-col gap-4 p-4" role="status" aria-label="Searching">
@@ -81,20 +111,64 @@ export function FindingFeed({ findings, masked, running }: { findings: Finding[]
     );
   }
   return (
-    <ul className="divide-y divide-edge" aria-label="Findings">
-      <AnimatePresence initial={false}>
-        {findings.map((f) => (
-          <motion.li
-            key={f.id}
-            layout={reduced ? false : "position"}
-            initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduced ? 0.15 : 0.24, ease: EASE_OUT }}
-          >
-            <Row f={f} masked={masked} all={findings} />
-          </motion.li>
-        ))}
-      </AnimatePresence>
-    </ul>
+    <>
+      {bulk && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-edge px-3 py-2">
+          {selecting ? (
+            <>
+              <button
+                type="button"
+                disabled={!chosen.length}
+                onClick={() => {
+                  onNotMe(chosen);
+                  stopSelecting();
+                }}
+                className="sv-press min-h-11 rounded-control bg-accent px-4 text-sm font-semibold text-on-accent hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Mark selected as not me{chosen.length ? ` (${chosen.length})` : ""}
+              </button>
+              <button type="button" onClick={stopSelecting} className="min-h-11 px-3 text-sm text-muted underline underline-offset-4 hover:text-fg">
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={() => setSelecting(true)} className="min-h-11 text-sm text-muted underline underline-offset-4 hover:text-fg">
+              Select several
+            </button>
+          )}
+        </div>
+      )}
+      <ul className="divide-y divide-edge" aria-label="Findings">
+        <AnimatePresence initial={false}>
+          {findings.map((f) => (
+            <motion.li
+              key={f.id}
+              layout={reduced ? false : "position"}
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0.15 : 0.24, ease: EASE_OUT }}
+              className="flex items-start"
+            >
+              {bulk && selecting && (
+                <label className="grid min-h-14 w-11 shrink-0 cursor-pointer place-items-center pl-2">
+                  <input
+                    type="checkbox"
+                    checked={picked.has(f.id)}
+                    onChange={() => toggle(f.id)}
+                    aria-label={`Select ${f.label}`}
+                    className="size-5 cursor-pointer accent-[var(--fg)]"
+                  />
+                </label>
+              )}
+              <div className="min-w-0 flex-1">
+                <Row f={f} masked={masked} all={findings} />
+              </div>
+              {onNotMe && !selecting && <NotMeButton finding={f} onNotMe={onNotMe} className="my-1.5 mr-2" />}
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+    </>
   );
 }
