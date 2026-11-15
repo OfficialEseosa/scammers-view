@@ -86,6 +86,20 @@ function captureFrame(video: HTMLVideoElement): HTMLCanvasElement {
 }
 
 /** Mean luma (0..255) of the whole frame and of the face box. */
+/** Can this browser hand out a graphics context right now? The mesh cannot run without one. */
+function graphicsState(): "ok" | "none" | "lost" {
+  try {
+    const c = document.createElement("canvas");
+    const gl = (c.getContext("webgl2") ?? c.getContext("webgl")) as WebGLRenderingContext | null;
+    if (!gl) return "none";
+    const lost = gl.isContextLost();
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return lost ? "lost" : "ok";
+  } catch {
+    return "none";
+  }
+}
+
 function measureLight(
   video: HTMLVideoElement,
   probe: HTMLCanvasElement,
@@ -161,6 +175,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
+  const delegateRef = useRef<"GPU" | "CPU">("GPU");
   const rafRef = useRef<number>(0);
   const runIdRef = useRef(0);
   const capturesRef = useRef<Partial<Record<CaptureKind, HTMLCanvasElement>>>({});
@@ -181,6 +196,8 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
   const [yaw, setYaw] = useState(0);
   const [stepsDone, setStepsDone] = useState(0);
   const [hint, setHint] = useState<Hint | null>(null);
+  /** Diagnostics line, shown on localhost or with ?facedebug in the address. */
+  const [debug, setDebug] = useState("");
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -326,6 +343,10 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       /* autoplay with muted+playsInline normally succeeds */
     }
 
+    if (graphicsState() !== "ok") {
+      fail("Your browser's graphics are switched off", "The face scan needs them. Close every window of this browser, open it again, and try once more.");
+      return;
+    }
     setStage({ kind: "starting", message: "Loading the face mesh on this device", step: 1 });
     // Start the recogniser now; it is awaited below, before the scan begins.
     const recognizerReady = loadRecognizer().then(
@@ -337,6 +358,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       if (!landmarkerRef.current) {
         const made = await createFaceLandmarker("VIDEO");
         landmarkerRef.current = made.landmarker;
+        delegateRef.current = made.delegate;
         vision = made.vision;
       } else {
         vision = await import("@mediapipe/tasks-vision");
@@ -361,7 +383,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
     const ctx = canvas.getContext("2d")!;
     const probe = document.createElement("canvas");
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    const landmarker = landmarkerRef.current!;
+    let landmarker = landmarkerRef.current!;
     const challenge = new HeadTurnChallenge(performance.now());
     const order = challenge.order;
 
@@ -371,6 +393,63 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
     let noFaceSince = performance.now();
     let lightHint: Hint | null = null;
     let lastUi = 0;
+    const scanStart = performance.now();
+    /**
+     * Low light: the mesh model misses faces in a dim room, and misses darker skin first. When the
+     * frame is dark, detection runs on a brightened copy of the frame instead of the raw video.
+     * 1 means off. The person still sees the untouched camera picture.
+     */
+    let boost = 1;
+    const enhanced = document.createElement("canvas");
+    const enhancedCtx = enhanced.getContext("2d");
+    let sawFace = false;
+    let failures = 0;
+    const debugOn = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname) || window.location.search.includes("facedebug");
+    let lastError = "";
+    let lastLight = "";
+    let lastDebug = 0;
+    let frames = 0;
+    const report = (faceCount: number | string) => {
+      const t = performance.now();
+      if (!debugOn || t - lastDebug < 400) return;
+      lastDebug = t;
+      const track = streamRef.current?.getVideoTracks()[0];
+      setDebug(
+        `gl:${graphicsState()} mesh:${delegateRef.current} rebuilds:${rebuilds} faces:${faceCount} frames:${frames} fails:${failures} boost:${boost.toFixed(1)} light:${lastLight || "?"} video:${video.videoWidth}x${video.videoHeight} cam:${(track?.label ?? "?").slice(0, 28)}${lastError ? ` err:${lastError.slice(0, 90)}` : ""}`,
+      );
+    };
+    let swapping = false;
+    /**
+     * Some graphics cards and phones run the mesh without error but return nothing, or fail on
+     * every frame. If the fast path has not found a face after a few seconds, rebuild it on the
+     * processor instead, once. Slower, but it works everywhere.
+     */
+    let rebuilds = 0;
+    const fallBackToCpu = (why: string) => {
+      // A crashed mesh cannot recover, so it is rebuilt (up to three times), always on the processor.
+      if (swapping || rebuilds >= 3) return;
+      if (delegateRef.current === "CPU" && failures < 8) return;
+      rebuilds++;
+      swapping = true;
+      console.info(`[face] switching the mesh to CPU: ${why}`);
+      void createFaceLandmarker("VIDEO", "CPU")
+        .then((made) => {
+          if (runId !== runIdRef.current) {
+            made.landmarker.close();
+            return;
+          }
+          // The old one is left alone: closing it after a crash can take the new one's graphics context with it.
+          failures = 0;
+          landmarker = made.landmarker;
+          landmarkerRef.current = made.landmarker;
+          delegateRef.current = "CPU";
+          noFaceSince = performance.now();
+        })
+        .catch(() => {})
+        .finally(() => {
+          swapping = false;
+        });
+    };
 
     const tick = () => {
       if (runId !== runIdRef.current) return;
@@ -384,13 +463,41 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         canvas.height = video.videoHeight;
       }
 
+      if (swapping) return;
       let result;
       try {
-        result = landmarker.detectForVideo(video, now);
-      } catch {
+        // Detection never gets the raw camera frame. A full-size frame (1280x960 on many laptops and
+        // phones) made the mesh run out of memory and crash on every frame, silently. A copy at most
+        // 640 wide (480 after a crash) is plenty for landmarks and a quarter of the memory.
+        let source: HTMLVideoElement | HTMLCanvasElement = video;
+        if (enhancedCtx && video.videoWidth) {
+          const w = Math.min(rebuilds > 0 ? 480 : 640, video.videoWidth);
+          const h = Math.round((w * video.videoHeight) / video.videoWidth);
+          if (enhanced.width !== w || enhanced.height !== h) {
+            enhanced.width = w;
+            enhanced.height = h;
+          }
+          enhancedCtx.filter = boost > 1 ? `brightness(${boost.toFixed(2)}) contrast(1.12)` : "none";
+          enhancedCtx.drawImage(video, 0, 0, w, h);
+          source = enhanced;
+        }
+        result = landmarker.detectForVideo(source, now);
+        failures = 0;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        if (++failures >= 8) fallBackToCpu(lastError || "detection keeps failing");
+        // Rebuilt three times and still crashing: stop and say so, instead of showing a camera that never reacts.
+        if (rebuilds >= 3 && failures > 40 && !swapping) {
+          fail("The face scan couldn't run in this browser", "Close every window of this browser, open it again, and try once more. If it still fails, try another browser.");
+        }
+        report("error");
         return;
       }
       const faces = result.faceLandmarks ?? [];
+      frames++;
+      report(faces.length);
+      if (faces.length > 0) sawFace = true;
+      else if (!sawFace && now - scanStart > 3500) fallBackToCpu("no face found on the fast path");
       const scanPhase = reduceMotion ? 0.5 : (now % 1800) / 1800;
       drawMesh(ctx, faces, tess, contours, irises, scanPhase);
 
@@ -432,6 +539,12 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         const light = measureLight(video, probe, box);
         lightHint = null;
         if (light) {
+          // Aim the darkest part that matters (the face if we have it, else the frame) at a mid grey.
+          lastLight = `${Math.round(light.frame)}/${light.face === null ? "-" : Math.round(light.face)}`;
+          const level = light.face ?? light.frame;
+          const next = level < 95 ? Math.min(3.2, Math.max(1.25, 125 / Math.max(level, 18))) : 1;
+          if ((next > 1) !== (boost > 1)) console.info(`[face] low-light boost ${next > 1 ? `on (x${next.toFixed(1)}, light ${Math.round(level)})` : "off"}`);
+          boost = next;
           if (light.frame < 45 || (light.face !== null && light.face < 55)) {
             lightHint = { tone: "warn", text: "It's too dark. Face a window or a lamp." };
           } else if (light.face !== null && light.frame - light.face > 60) {
@@ -516,7 +629,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-frame border border-edge-strong bg-surface">
         <video
           ref={videoRef}
-          className="absolute inset-0 h-full w-full -scale-x-100 object-cover opacity-75 grayscale"
+          className="absolute inset-0 h-full w-full -scale-x-100 object-cover"
           playsInline
           muted
           autoPlay
@@ -636,6 +749,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         </button>
       )}
       {stage.kind === "starting" && stage.step === 0 && <p className="text-muted">Allow camera access when asked</p>}
+      {debug && stage.kind === "scanning" && <p className="break-all font-mono text-xs text-muted">{debug}</p>}
     </section>
   );
 }

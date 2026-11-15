@@ -21,26 +21,38 @@ function quietWasmInfo() {
 
 export async function createFaceLandmarker(
   mode: "VIDEO" | "IMAGE" = "VIDEO",
-): Promise<{ landmarker: FaceLandmarker; vision: VisionModule }> {
+  /** "CPU" skips the graphics card. Slower, but works when the GPU path returns nothing or keeps failing. */
+  prefer: "GPU" | "CPU" = "GPU",
+): Promise<{ landmarker: FaceLandmarker; vision: VisionModule; delegate: "GPU" | "CPU" }> {
   quietWasmInfo();
   const vision = await import("@mediapipe/tasks-vision");
   const fileset = await vision.FilesetResolver.forVisionTasks(WASM_BASE);
   const make = (delegate: "GPU" | "CPU") =>
     vision.FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: MODEL, delegate },
+      // Its own drawing surface every time: a rebuilt mesh must not share (and lose) the old one's graphics context.
+      canvas: document.createElement("canvas"),
       runningMode: mode,
       numFaces: 2,
       outputFacialTransformationMatrixes: true,
       outputFaceBlendshapes: false,
-      minFaceDetectionConfidence: 0.5,
-      minFacePresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+      // A little under the 0.5 default: dim rooms and darker skin score lower, and a missed face blocks the whole scan.
+      minFaceDetectionConfidence: 0.35,
+      minFacePresenceConfidence: 0.35,
+      minTrackingConfidence: 0.4,
     });
   let landmarker: FaceLandmarker;
-  try {
-    landmarker = await make("GPU");
-  } catch {
+  let delegate: "GPU" | "CPU" = prefer;
+  if (prefer === "CPU") {
     landmarker = await make("CPU");
+  } else {
+    try {
+      landmarker = await make("GPU");
+    } catch {
+      landmarker = await make("CPU");
+      delegate = "CPU";
+    }
   }
-  return { landmarker, vision };
+  console.info(`[face] mesh running on: ${delegate}`);
+  return { landmarker, vision, delegate };
 }
