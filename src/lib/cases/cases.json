@@ -1,0 +1,1762 @@
+[
+ {
+  "id": "ic3-psa260309",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260309",
+  "year": 2026,
+  "title": "Criminals Impersonating City and County Officials in Phishing Emails for Planning and Zoning Permits",
+  "summary": "The FBI is warning the public about an emerging phishing scheme by criminals impersonating city and county officials to solicit fraudulent payments for city and county planning and zoning permits. The criminals leverage publicly available permit information to identify potential victims and increase the legitimacy of the scam. Victims of this scam have been identified nationwide.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "email",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa260515",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260515",
+  "year": 2026,
+  "title": "ShinyHunters: Cyber Criminal Group Attacks Learning Management System",
+  "summary": "The Federal Bureau of Investigation (FBI) is providing this Public Service Announcement (PSA) to warn of potential future impacts related to a cyber-attack that affected an online Learning Management System (LMS), resulting in an interruption of service to educational institutions and students across the country. The LMS platform is now fully operational.",
+  "scam_type": "phishing",
+  "how": "A message copies a real organisation and sends you to a fake login page to steal your password or account.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "school",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa260527",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260527",
+  "year": 2026,
+  "title": "Threat Actors Spoofing FIFA Websites in Advance of the 2026 World Cup",
+  "summary": "The Federal Bureau of Investigation (FBI) is issuing this Public Service Announcement (PSA) to warn the public that cyber threat actors are conducting spoofing attacks against the Fédération Internationale de Football Association (FIFA) website in advance of the 2026 FIFA World Cup. A spoofed website is designed to pose as a legitimate website, with branding, product listings, etc., and malicious actors use them to further illegal activity like personal information theft and facilitating monetary scams.",
+  "scam_type": "fake-website",
+  "how": "A copy of a real website takes payments or collects personal details.",
+  "channels": [
+   "web"
+  ],
+  "needs": [
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa260615",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260615",
+  "year": 2026,
+  "title": "Scammers Use Couriers to Collect Cash in Cryptocurrency Investment Scams",
+  "summary": "The FBI warns the public about scammers instructing victims, usually senior citizens, to participate in cash pickups purportedly to protect funds purchased through the scammer's cryptocurrency investment platforms, which, at this point, continued to deceptively appear legitimate to the victim. The scammers arrange for couriers to meet the victims in person to retrieve cash for fraudulent investments.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "phone",
+   "social",
+   "in_person"
+  ],
+  "needs": [
+   "phone",
+   "location",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa260616",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260616",
+  "year": 2026,
+  "title": "Protect Your Property from Illegal Sales Through Parcel Owner Impersonation",
+  "summary": "The Federal Bureau of Investigation (FBI) is warning the public about an identity theft scheme wherein criminals impersonate the owners of vacant property parcels and attempt to illegally sell the property parcels without the owner’s knowledge or consent. The Scam Phase 1 Landowner Impersonation Criminals create fake identifications (drivers licenses and/or U.S. passports), Outlook email addresses, and Voice over Internet Protocol (VoIP) generated phone numbers and use them to impersonate landowners.",
+  "scam_type": "identity-theft",
+  "how": "Someone uses your personal details, such as birthday, address and employer, to open accounts, file documents or pass checks in your name.",
+  "channels": [
+   "email",
+   "web"
+  ],
+  "needs": [
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa260720",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260720",
+  "year": 2026,
+  "title": "FBI Warns of Scammers Impersonating the IC3",
+  "summary": "This Public Service Announcement (PSA) is an update to Alert Number I-04182025-PSA titled, \"FBI Warns of Scammers Impersonating the IC3.\" This PSA contains updated information about an ongoing fraud scheme where criminal scammers are impersonating FBI personnel facilitating Internet Crime Complaint Center (IC3) complaints to deceive and revictimize individuals.",
+  "scam_type": "recovery",
+  "how": "After you lose money to a scam, someone poses as a lawyer, agency or recovery firm and charges a fee to get it back.",
+  "channels": [
+   "email",
+   "phone",
+   "social"
+  ],
+  "needs": [
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa260804",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260804",
+  "year": 2026,
+  "title": "Ongoing Threats of Swatting and Indicators for Community Members",
+  "summary": "This Public Service Announcement (PSA) is an update to Alert Number I-042925-PSA titled, \"Threat Actors Use 'Swatting' to Target Victims Nationwide.\" This PSA contains updated information about the ongoing threat posed by “swatting” incidents targeting a variety of locations across the United States, including educational institutions, government buildings, religious institutions, public transportation centers, hospitals, and other public buildings.",
+  "scam_type": "swatting",
+  "how": "Someone uses your home address and phone number to send police to your door with a false emergency report.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "location",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa260810",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260810",
+  "year": 2026,
+  "title": "Sexual Exploitation Actors Stealing and Leaking Explicit Content",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public about sexual exploitation (SE) actors targeting adult and underage victims1 by illegally accessing their social media and personal accounts to steal and post their explicit content (also known as non-consensual intimate images, or NCII) for sale on criminal marketplaces.",
+  "scam_type": "sextortion",
+  "how": "Someone threatens to share real or faked intimate images of you with your family and friends unless you pay.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "email",
+   "photo"
+  ]
+ },
+ {
+  "id": "ic3-psa260901",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260901",
+  "year": 2026,
+  "title": "Malicious Cyber Actors Gain Access to Victim Accounts Through Consent Phishing",
+  "summary": "Since late 2025, malicious cyber actors have been targeting prominent victims, their family members, and personal acquaintances by directly messaging personal accounts with malicious links leveraging a technique known as \"OAuth consent phishing.\" Threat Landscape OAuth is a commonly used authorization framework which enables websites and Web applications to request access to a user's account on another application without the user exposing their login credentials to the requesting application.",
+  "scam_type": "account-takeover",
+  "how": "Someone answers your security questions, tricks support staff or sends you a link to reset your password and take over your email or other accounts.",
+  "channels": [
+   "social",
+   "email",
+   "text"
+  ],
+  "needs": [
+   "handle",
+   "email",
+   "relative"
+  ]
+ },
+ {
+  "id": "ic3-psa260917",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA260917",
+  "year": 2026,
+  "title": "Scammers Impersonating Law Enforcement and Government Officials in Fraud Schemes",
+  "summary": "The FBI reiterates its warning to the public regarding ongoing widespread fraud schemes in which scammers impersonate US and foreign law enforcement or government officials to extort money or personally identifiable information (PII) from victims.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone",
+   "text",
+   "email"
+  ],
+  "needs": [
+   "phone",
+   "email",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa261015-3",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2026/PSA261015-3",
+  "year": 2026,
+  "title": "Scammers Exploit 2026 U.S. Midterm Election to Perpetrate Multiple Fraud Schemes",
+  "summary": "The FBI warns the public that scammers could exploit the 2026 US Midterm Election to perpetrate financial fraud schemes. These schemes target victims across the United States and have previously exploited state and local elections.",
+  "scam_type": "charity-donation",
+  "how": "A fake charity or campaign asks for donations after a disaster, during a crisis or at election time.",
+  "channels": [
+   "email",
+   "text",
+   "social",
+   "web"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa250116",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250116",
+  "year": 2025,
+  "title": "Beware of Charitable Fraud Related to Mass Casualty and Disaster Events",
+  "summary": "The FBI is issuing this Public Service Announcement to warn the public that scammers exploit mass casualty events and disasters, such as the New Year's Day terrorist attack in New Orleans and the ongoing wildfires in Los Angeles, to commit fraud by soliciting fake charitable donations to support victims or their families. Scammers may pose as disaster relief agencies to collect personal information, conduct charitable fraud schemes, or commit fraud against disaster assistance programs.",
+  "scam_type": "charity-donation",
+  "how": "A fake charity or campaign asks for donations after a disaster, during a crisis or at election time.",
+  "channels": [
+   "social",
+   "email",
+   "phone",
+   "text"
+  ],
+  "needs": [
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa250402",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250402",
+  "year": 2025,
+  "title": "Criminal Actors Steal US Taxpayer Identity to File False Tax Returns and Claim Refunds",
+  "summary": "The FBI is warning the public about criminal actors stealing US taxpayer identities to file false tax returns and fraudulently claim refunds. The FBI's Internet Crime Complaint Center (IC3) has received over 1,000 complaints about identity theft in connection with tax returns within the past year representing a 26% increase from the previous year.",
+  "scam_type": "identity-theft",
+  "how": "Someone uses your personal details, such as birthday, address and employer, to open accounts, file documents or pass checks in your name.",
+  "channels": [
+   "email",
+   "phone"
+  ],
+  "needs": [
+   "birthday",
+   "location",
+   "employer"
+  ]
+ },
+ {
+  "id": "ic3-psa250424",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250424",
+  "year": 2025,
+  "title": "Cyber Criminals Impersonating Employee Self-Service Websites to Steal Victim Information and Funds",
+  "summary": "The FBI is warning the public that cyber criminals are targeting users of employee self-service websites owned by companies and government services. The cyber criminals are using search engine advertisements to impersonate legitimate websites and steal victim information and funds. Cyber criminals use fraudulent search engine advertisements to direct users to malicious websites that mimic the legitimate sites in appearance, but steal login credentials and other financial information when the victim logs in.",
+  "scam_type": "payroll-diversion",
+  "how": "A fake staff portal or email steals your work login and reroutes your pay.",
+  "channels": [
+   "web"
+  ],
+  "needs": [
+   "employer"
+  ]
+ },
+ {
+  "id": "ic3-psa250429",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250429",
+  "year": 2025,
+  "title": "Threat Actors Use \"Swatting\" to Target Victims Nationwide",
+  "summary": "The Federal Bureau of Investigation (FBI) is aware of multiple recent \"swatting\" incidents. This Public Service Announcement (PSA) is intended to provide the public with information about what swatting is, how to take protective steps against swatting, and how to report potential incidents. The FBI takes swatting threats seriously and coordinates with federal, state, local, tribal, and territorial law enforcement partners to respond to and investigate these incidents. What is Swatting?",
+  "scam_type": "swatting",
+  "how": "Someone uses your home address and phone number to send police to your door with a false emergency report.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "location",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa250430",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250430",
+  "year": 2025,
+  "title": "Emerging Discount Medical Insurance Scams",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public of discount medical insurance scams. Discount medical insurance scams involve misleading or fraudulent offers for medical insurance plans that promise reduced rates on legitimate medical insurance but do not provide any actual medical insurance coverage, resulting in millions of dollars in losses annually.",
+  "scam_type": "health-insurance",
+  "how": "A caller sells a cheap health plan that turns out not to be insurance.",
+  "channels": [
+   "phone",
+   "text",
+   "web"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa250513",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250513",
+  "year": 2025,
+  "title": "Impersonation Scheme Targeting Middle Eastern Students in the United States",
+  "summary": "The FBI is warning the public about a fraud scheme targeting foreign individuals lawfully residing in the United States on valid student visas. Criminal scammers impersonate US and foreign government officials claiming there is an issue with the student's immigration status and exploit this for financial gain. Thus far, we are aware scammers have targeted students from the United Arab Emirates (UAE), Saudi Arabia, Qatar, and Jordan.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "phone",
+   "school"
+  ]
+ },
+ {
+  "id": "ic3-psa250515",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250515",
+  "year": 2025,
+  "title": "Senior US Officials Impersonated in Malicious Messaging Campaign",
+  "summary": "FBI is issuing this announcement to warn and provide mitigation tips to the public about an ongoing malicious text and voice messaging campaign. Since April 2025, malicious actors have impersonated senior US officials to target individuals, many of whom are current or former senior US federal or state government officials and their contacts. If you receive a message claiming to be from a senior US official, do not assume it is authentic.",
+  "scam_type": "known-contact-impersonation",
+  "how": "A text or voice message pretends to be someone you know or work with, sometimes with a cloned voice, to get you onto another app or to click a link.",
+  "channels": [
+   "text",
+   "phone"
+  ],
+  "needs": [
+   "phone",
+   "employer"
+  ]
+ },
+ {
+  "id": "ic3-psa250627",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250627",
+  "year": 2025,
+  "title": "Criminals Posing as Legitimate Health Insurers and Fraud Investigators to Commit Health Care Fraud",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public about criminals impersonating legitimate health insurers and their investigative team members. These criminals are sending emails and text messages to patients and health care providers, disguising them as legitimate communications from trusted health care authorities.",
+  "scam_type": "health-insurer-impersonation",
+  "how": "A message poses as a health insurer or investigator and asks for medical records, account details or a repayment.",
+  "channels": [
+   "email",
+   "text"
+  ],
+  "needs": [
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa250703",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250703",
+  "year": 2025,
+  "title": "Fraudsters Target US Stock Investors through Investment Clubs Accessed on Social Media and Messaging Applications",
+  "summary": "The FBI warns the public about criminals targeting US stock investors through social media platforms and messaging service applications (apps). The scheme, known as a \"ramp-and-dump\" stock manipulation, targets US investors through online engagement, often via social media advertisements or messages promoting an \"investment club\" of fellow investors, some of which may be bots or fake accounts. These promotions typically direct victims to secure messaging apps where the group operates.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social",
+   "text"
+  ],
+  "needs": [
+   "handle",
+   "phone",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa250723-3",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250723-3",
+  "year": 2025,
+  "title": "The Com: Theft, Extortion, and Violence are a Rising Threat to Youth Online",
+  "summary": "The Federal Bureau of Investigation is warning the public about a growing and evolving online threat group known as The Com, short for The Community. The Com is a primarily English speaking, international, online ecosystem comprised of multiple interconnected networks whose members, many of whom are minors, engage in a variety of criminal violations. The FBI estimates thousands of individuals identify as current or recent members of The Com with varying levels of associated activity.",
+  "scam_type": "extortion",
+  "how": "Someone threatens to expose, hurt or embarrass you or the people close to you, using personal details they found, unless you pay.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "location",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa250731",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250731",
+  "year": 2025,
+  "title": "Unsolicited Packages Containing QR Codes Used to Initiate Fraud Schemes",
+  "summary": "The FBI warns the public about a scam variation in which criminals send unsolicited packages containing a QR code1 that prompts the recipient to provide personal and financial information or unwittingly download malicious software that steals data from their phone. To encourage the victim to scan the QR code, the criminals often ship the packages without sender information to entice the victim to scan the QR code.",
+  "scam_type": "qr-phishing",
+  "how": "An unexpected parcel or notice carries a QR code that leads to a page that steals your details.",
+  "channels": [
+   "mail"
+  ],
+  "needs": [
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa250813",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA250813",
+  "year": 2025,
+  "title": "Fictitious Law Firms Targeting Cryptocurrency Scam Victims Combine Multiple Exploitation Tactics While Offering to Recover Funds",
+  "summary": "This PSA is an update to Alert Number I-062424-PSA titled, \"Fictitious Law Firms Targeting Cryptocurrency Scam Victims Offering to Recover Funds.\" This updated advisory provides additional red flag indicators and due diligence measures to help victims who have been in contact with fictitious law firms conducting this fraudulent activity.",
+  "scam_type": "recovery",
+  "how": "After you lose money to a scam, someone poses as a lawyer, agency or recovery firm and charges a fee to get it back.",
+  "channels": [
+   "social",
+   "email",
+   "phone"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa251113",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA251113",
+  "year": 2025,
+  "title": "Criminals Impersonate US Health Insurance Providers and Chinese Law Enforcement to Target Chinese Speakers Residing in the United States",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public about an evolving financial fraud scheme targeting Chinese speaking individuals residing in the United States in which criminals impersonate US health insurance providers and Chinese law enforcement. Targeted individuals receive a call from a spoofed telephone number of a legitimate US health insurance provider’s claims department. The call is conducted in Chinese, and the recipient is asked about recent insurance claims for alleged surgical procedures.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa251125",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA251125",
+  "year": 2025,
+  "title": "Account Takeover Fraud via Impersonation of Financial Institution Support",
+  "summary": "The FBI warns of cyber criminals impersonating financial institutions to steal money or information in Account Takeover (ATO) fraud schemes. The cyber criminals target individuals, businesses, and organizations of varied sizes and across sectors. In ATO fraud, cyber criminals gain unauthorized access to the targeted online financial institution, payroll, or health savings account, with the goal of stealing money or information for personal gain.",
+  "scam_type": "bank-impersonation",
+  "how": "A caller or text poses as your bank's fraud team, says your account is at risk and gets you to move money or read out a code.",
+  "channels": [
+   "phone",
+   "text",
+   "email",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa251205",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA251205",
+  "year": 2025,
+  "title": "Criminals Using Altered Proof-of-Life Media to Extort Victims in Virtual Kidnapping for Ransom Scams",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public about criminals altering photos found on social media or other publicly available sites to use as fake proof of life photos in virtual kidnapping for ransom scams. The criminal actors pose as kidnappers and provide seemingly real photos or videos of victims along with demands for ransom payments.",
+  "scam_type": "virtual-kidnapping",
+  "how": "Someone sends your family altered photos of you as proof they are holding you and demands a ransom.",
+  "channels": [
+   "text",
+   "phone"
+  ],
+  "needs": [
+   "photo",
+   "relative",
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa251219",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2025/PSA251219",
+  "year": 2025,
+  "title": "Senior U.S. Officials Continue to be Impersonated in Malicious Messaging Campaign",
+  "summary": "This is an update to Public Service Announcement I-051525-PSA, released May 15, 2025, which can be found here. Activity dating back to 2023 reveals malicious actors have impersonated senior U.S. state government, White House, and Cabinet level officials, as well as members of Congress to target individuals, including officials' family members and personal acquaintances. If you receive a message claiming to be from a current or former senior U.S.",
+  "scam_type": "known-contact-impersonation",
+  "how": "A text or voice message pretends to be someone you know or work with, sometimes with a cloned voice, to get you onto another app or to click a link.",
+  "channels": [
+   "text",
+   "phone"
+  ],
+  "needs": [
+   "phone",
+   "employer"
+  ]
+ },
+ {
+  "id": "ic3-psa240103",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240103",
+  "year": 2024,
+  "title": "Chinese Police Imposters Incorporate Aggressive Tactics to Target U.S.-Based Chinese Community",
+  "summary": "The FBI is warning the public about criminal actors impersonating Chinese police officers to defraud the US-based Chinese community, in particular Chinese students attending universities in the United States. The criminal actors tell victims they are being investigated for an alleged financial crime in China and need to pay to avoid arrest. The criminal actors then direct victims to consent to 24/7 video and audio monitoring. The scheme consists of four phases.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "phone",
+   "school"
+  ]
+ },
+ {
+  "id": "ic3-psa240129",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240129",
+  "year": 2024,
+  "title": "Scammers Use Couriers to Retrieve Cash and Precious Metals from Victims of Tech Support and Government Impersonation Scams",
+  "summary": "The FBI is warning the public about scammers instructing victims, many of whom are senior citizens, to liquidate their assets into cash and/or buy gold, silver, or other precious metals to protect their funds. Criminals then arrange for couriers to meet the victims in person to pick up the cash or precious metals. From May to December 2023, the FBI Internet Crime Complaint Center (IC3) saw an uptick in this activity with aggregated losses of over $55 million.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "phone",
+   "web",
+   "in_person"
+  ],
+  "needs": [
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa240411",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240411",
+  "year": 2024,
+  "title": "Cyber Criminals Target Victims Using Social Engineering Techniques",
+  "summary": "The Federal Bureau of Investigation (FBI) is issuing this announcement to inform individuals and businesses about social engineering techniques used by cybercriminals to gain access to financial, corporate, and network accounts. As described in detail below, recently observed social engineering techniques used by cybercriminals to target victims include: - impersonating employees, - subscriber identity module (SIM) swap attacks, - call forwarding and simultaneous ring; and, - phishing.",
+  "scam_type": "account-takeover",
+  "how": "Someone answers your security questions, tricks support staff or sends you a link to reset your password and take over your email or other accounts.",
+  "channels": [
+   "phone",
+   "text",
+   "email"
+  ],
+  "needs": [
+   "phone",
+   "email",
+   "employer",
+   "birthday"
+  ]
+ },
+ {
+  "id": "ic3-psa240412",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240412",
+  "year": 2024,
+  "title": "Smishing Scam Regarding Debt for Road Toll Services",
+  "summary": "Since early-March 2024, the FBI Internet Crime Complaint Center (IC3) has received over 2,000 complaints reporting smishing1 texts representing road toll collection service from at least three states. IC3 complaint information indicates the scam may be moving from state-to-state. (State Toll Service Name): We've noticed an outstanding toll amount of $12.51 on your record. To avoid a late fee of $50.00, visit https://myturnpiketollservices.com to settle your balance.",
+  "scam_type": "toll-smishing",
+  "how": "A text says you owe a small road toll or delivery fee and links to a page that takes your card details.",
+  "channels": [
+   "text"
+  ],
+  "needs": [
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa240426",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240426",
+  "year": 2024,
+  "title": "New Verification Schemes Target Users of Online Dating Platforms",
+  "summary": "The FBI warns of \"free\" online verification service schemes in which fraudsters target users of dating websites and applications (apps) to defraud victims into signing up for recurring payments. Unlike romance scams involving investment-confidence schemes, commonly referred to as pig-butchering1, where victims are convinced to transfer large amounts of money over time, the so called \"free\" verification schemes involve recurring and costly monthly subscription fees.",
+  "scam_type": "romance",
+  "how": "Someone builds a relationship with you on a dating app or social media, then asks for money or gets you to pay for something.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa240604",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240604",
+  "year": 2024,
+  "title": "Scammers Defraud Individuals via Work-From-Home Scams",
+  "summary": "The FBI warns of scammers offering victims fake work-from-home jobs, typically involving a relatively simple task, such as rating restaurants or \"optimizing\" a service by repeatedly clicking a button. The scammers pose as a legitimate business, such as a staffing or recruiting agency,and may contact victims via an unsolicited call or message.",
+  "scam_type": "job-offer",
+  "how": "A recruiter or employer offers easy remote work, then asks for fees, your bank details or to move money for them.",
+  "channels": [
+   "text",
+   "social",
+   "email"
+  ],
+  "needs": [
+   "phone",
+   "email",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa240624",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240624",
+  "year": 2024,
+  "title": "Fictitious Law Firms Targeting Cryptocurrency Scam Victims Offering to Recover Funds",
+  "summary": "The Federal Bureau of Investigation (FBI) is issuing this announcement to inform the public of an emerging criminal tactic used to further defraud cryptocurrency scam victims. This PSA is an update to Alert Number I-081123-PSA, published on 08/11/2023, titled, \"Increase in Companies Falsely Claiming an Ability to Recover Funds Lost in Cryptocurrency Investment Scams.\" Using social media or other messaging platforms, fraudsters posing as lawyers representing fictitious law firms may contact scam victims and offer th…",
+  "scam_type": "recovery",
+  "how": "After you lose money to a scam, someone poses as a lawyer, agency or recovery firm and charges a fee to get it back.",
+  "channels": [
+   "social",
+   "email",
+   "phone"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa240625",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240625",
+  "year": 2024,
+  "title": "Scammers Falsely Promise Significant Profit to Victims in Collectible Coin Scams",
+  "summary": "The FBI is warning the public about scammers falsely promising victims, many of whom are older Americans, a significant profit on purchases or sales of collectible coins. These scams have impacted more than 100 victims across at least 30 U.S. states, causing over $9 million in losses. Scammers \"cold call\" victims to market their alleged collectible coin business. If victims already have collectible coins, scammers promise them a high rate of return for selling the coins.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "phone",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa240801",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240801",
+  "year": 2024,
+  "title": "FBI Warns of Scammers Impersonating Cryptocurrency Exchanges",
+  "summary": "The FBI warns of scammers impersonating cryptocurrency exchange employees to steal funds. How the Scam Works - The scammer contacts the victim via an unsolicited call or message and pretends to be a cryptocurrency exchange employee. - The scammer conveys urgency and may claim there is a problem with the victim's account, or someone is attempting to compromise the victim's account.",
+  "scam_type": "crypto-exchange-impersonation",
+  "how": "A caller poses as your crypto exchange, says your account is compromised and gets your login or a transfer.",
+  "channels": [
+   "phone",
+   "text"
+  ],
+  "needs": [
+   "phone",
+   "email",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa240802",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240802",
+  "year": 2024,
+  "title": "Safety Concern Related to Recent Trend in Financial Institution Customer Fraud Scheme",
+  "summary": "The Federal Bureau of Investigation (FBI) warns the public of a fraudulent scheme in which scammers impersonate bank representatives, hereinafter \"impersonators,\" to fraudulently obtain bank cards (with \"chips\") from bank customers. The safety concern is the impersonators are hiring accomplices to come to the customer's home. How The Scheme Works Bank customers are contacted by phone from a number that caller ID indicates is from their bank.",
+  "scam_type": "bank-impersonation",
+  "how": "A caller or text poses as your bank's fraud team, says your account is at risk and gets you to move money or read out a code.",
+  "channels": [
+   "phone",
+   "text",
+   "in_person"
+  ],
+  "needs": [
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa240903",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240903",
+  "year": 2024,
+  "title": "North Korea Aggressively Targeting Crypto Industry with Well-Disguised Social Engineering Attacks",
+  "summary": "The Democratic People's Republic of Korea (\"DPRK\" aka North Korea) is conducting highly tailored, difficult-to-detect social engineering campaigns against employees of decentralized finance (\"DeFi\"), cryptocurrency, and similar businesses to deploy malware and steal company cryptocurrency. North Korean social engineering schemes are complex and elaborate, often compromising victims with sophisticated technical acumen.",
+  "scam_type": "job-offer",
+  "how": "A recruiter or employer offers easy remote work, then asks for fees, your bank details or to move money for them.",
+  "channels": [
+   "social",
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "interest",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa240911",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA240911",
+  "year": 2024,
+  "title": "Business Email Compromise: The $55 Billion Scam",
+  "summary": "This Public Service Announcement is an update and companion piece to Business Email Compromise PSA I-060923-PSA posted on www.ic3.gov. This PSA includes new IC3 complaint information and updated statistics from October 2013 to December 2023. Definition Business Email Compromise/Email Account Compromise (BEC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa241029",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA241029",
+  "year": 2024,
+  "title": "Scammers Exploit 2024 US General Election to Perpetrate Multiple Fraud Schemes",
+  "summary": "The FBI is warning the public about scammers exploiting the 2024 US General election to perpetrate multiple types of financial fraud schemes. These scams target victims across the United States and have previously exploited state and local elections for similar scams.",
+  "scam_type": "charity-donation",
+  "how": "A fake charity or campaign asks for donations after a disaster, during a crisis or at election time.",
+  "channels": [
+   "email",
+   "text",
+   "social",
+   "web"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa241203",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2024/PSA241203",
+  "year": 2024,
+  "title": "Criminals Use Generative Artificial Intelligence to Facilitate Financial Fraud",
+  "summary": "The FBI is warning the public that criminals exploit generative artificial intelligence (AI) to commit fraud on a larger scale which increases the believability of their schemes. Generative AI reduces the time and effort criminals must expend to deceive their targets. Generative AI takes what it has learned from examples input by a user and synthesizes something entirely new based on that information.",
+  "scam_type": "ai-impersonation",
+  "how": "Someone clones your voice or face from public videos and photos and uses it to ask your family or contacts for money.",
+  "channels": [
+   "phone",
+   "social",
+   "text",
+   "email"
+  ],
+  "needs": [
+   "video",
+   "photo",
+   "relative",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa230302",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230302",
+  "year": 2023,
+  "title": "Scammers Targeting Owners of Timeshares in Mexico",
+  "summary": "Timeshare owners across the country are being scammed out of millions of dollars by companies promising to sell or rent the unsuspecting victims' timeshares. In 2022, the FBI Internet Crime Complaint Center (IC3) received over 600 complaints with losses of approximately $39.6 million from victims contacted by scammers regarding timeshares owned in Mexico.",
+  "scam_type": "timeshare",
+  "how": "Someone offers to sell or rent out a timeshare you own and charges upfront fees.",
+  "channels": [
+   "phone",
+   "email"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa230309",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230309",
+  "year": 2023,
+  "title": "Criminals Steal Cryptocurrency through Play-to-Earn Games",
+  "summary": "The FBI warns of criminals creating fake gaming applications (apps) to steal millions of dollars in cryptocurrency. Criminals advertise the apps as play-to-earn games offering financial incentives to players. Criminals contact victims online and build a relationship with victims over time. Criminals then introduce victims to an online or mobile game, in which players purportedly earn cryptocurrency rewards in exchange for some activity, such as growing \"crops\" on an animated farm.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa230314",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230314",
+  "year": 2023,
+  "title": "The FBI Warns of a Spike in Cryptocurrency Investment Schemes",
+  "summary": "The FBI warns of a spike in cryptocurrency investment schemes. Criminals, typically based overseas, defrauded victims of more than two billion US dollars in 2022 using these schemes, according to the FBI Internet Crime Complaint Center (IC3). The schemes are socially-engineered and trust-enabled, usually beginning with a romance or confidence scam and evolving into cryptocurrency investment fraud. Criminals use fictitious identities to develop relationships and build rapport with victims.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social",
+   "text"
+  ],
+  "needs": [
+   "handle",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa230410",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230410",
+  "year": 2023,
+  "title": "Criminals Pose as Chinese Authorities to Target US-based Chinese Community",
+  "summary": "The FBI warns of criminal actors posing as Chinese law enforcement officials or prosecutors in financial fraud schemes targeting the US-based Chinese community. Criminals tell victims they are suspects in financial crimes and threaten them with arrest or violence if they do not pay the criminals. Criminals exploit widely publicized efforts by the People’s Republic of China government to harass and facilitate repatriation of individuals living in the United States to build plausibility for their fraud.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa230522",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230522",
+  "year": 2023,
+  "title": "The FBI Warns of False Job Advertisements Linked to Labor Trafficking at Scam Compounds",
+  "summary": "The FBI warns US citizens and individuals who travel or live abroad of the risk of false job advertisements linked to labor trafficking at Southeast Asia-based scam compounds1 where victims are held against their will, intimidated, and forced to commit international cryptocurrency investment fraud schemes2. Criminal actors target victims, primarily in Asia, in employment fraud schemes by posting false job advertisements on social media and online employment sites.",
+  "scam_type": "job-offer",
+  "how": "A recruiter or employer offers easy remote work, then asks for fees, your bank details or to move money for them.",
+  "channels": [
+   "social",
+   "web"
+  ],
+  "needs": [
+   "handle",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa230605",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230605",
+  "year": 2023,
+  "title": "Malicious Actors Manipulating Photos and Videos to Create Explicit Content and Sextortion Schemes",
+  "summary": "The FBI is warning the public of malicious actors creating synthetic content (commonly referred to as \"deepfakes\"a) by manipulating benign photographs or videos to target victims. Technology advancements are continuously improving the quality, customizability, and accessibility of artificial intelligence (AI)-enabled content creation. The FBI continues to receive reports from victims, including minor children and non-consenting adults, whose photos or videos were altered into explicit content.",
+  "scam_type": "sextortion",
+  "how": "Someone threatens to share real or faked intimate images of you with your family and friends unless you pay.",
+  "channels": [
+   "social",
+   "email",
+   "text"
+  ],
+  "needs": [
+   "photo",
+   "video",
+   "handle",
+   "relative"
+  ]
+ },
+ {
+  "id": "ic3-psa230609",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230609",
+  "year": 2023,
+  "title": "Business Email Compromise: The $50 Billion Scam",
+  "summary": "This Public Service Announcement is an update and companion piece to Business Email Compromise PSA I-050422-PSA posted on www.ic3.gov. This PSA includes new Internet Crime Complaint Center complaint information and updated statistics from October 2013 to December 2022. Definition Business Email Compromise/Email Account Compromise (BEC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa230718",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230718",
+  "year": 2023,
+  "title": "Increase in Tech Support Scams Targeting Older Adults and Directing Victims to Send Cash through Shipping Companies",
+  "summary": "The FBI is warning the public of a recent nationwide uptick in technical support scams targeting older adults, where scammers instruct victims to send cash, wrapped in a magazine(s), via shipping companies. The Scam Tech support scammers usually initiate contact with older adult victims through a phone call, text, email, or pop-up window purporting to be support from a legitimate company. The scammer informs the victim of fraudulent activity or potential refund for a subscription service.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "phone",
+   "email",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa230804",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230804",
+  "year": 2023,
+  "title": "Criminals Pose as Non-Fungible Token (NFT) Developers to Target Internet Users with an Interest in NFT Acquisition",
+  "summary": "The FBI warns of criminal actors posing as legitimate NFT developers in financial fraud schemes targeting active users within the NFT community. Criminals either gain direct access to NFT developer social media accounts or create almost identical accounts to promote new NFT releases. Fraudulent posts often aim to create a sense of urgency, using phrases like \"limited supply,\" and refer to the promotion as a \"surprise\" or previously unannounced mint.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa230811",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230811",
+  "year": 2023,
+  "title": "Increase in Companies Falsely Claiming an Ability to Recover Funds Lost in Cryptocurrency Investment Scams",
+  "summary": "The FBI warns of an increase in cryptocurrency recovery schemes, which exploit victims who lost cryptocurrency to fraud, scams, and theft. In 2022, victims reported losing more than $2.5 billion in cryptocurrency investment frauds1 alone, according to the FBI Internet Crime Complaint Center (IC3). Representatives of fraudulent businesses claiming to provide cryptocurrency tracing and promising an ability to recover lost funds may contact victims directly on social media or messaging platforms.",
+  "scam_type": "recovery",
+  "how": "After you lose money to a scam, someone poses as a lawyer, agency or recovery firm and charges a fee to get it back.",
+  "channels": [
+   "social",
+   "email",
+   "phone"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa230814",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230814",
+  "year": 2023,
+  "title": "Cyber Criminals Targeting Victims through Mobile Beta-Testing Applications",
+  "summary": "The FBI is warning the public that cyber criminals are embedding malicious code in mobile beta-testing applications (apps) to defraud potential victims. Beta-testing apps are online services for testing of mobile apps prior to official release. The beta apps typically are not subject to mobile operating systems' review processes. The malicious apps enable theft of personally identifiable information (PII), financial account access, or device takeover.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa230929",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA230929",
+  "year": 2023,
+  "title": "\"Phantom Hacker\" Scams Target Senior Citizens and Result in Victims Losing their Life Savings",
+  "summary": "The FBI is warning the public of a recent nationwide increase in \"Phantom Hacker\" scams, significantly impacting senior citizens. This Phantom Hacker scam is an evolution of more general tech support scams, layering imposter tech support, financial institution, and government personas to enhance the trust victims place in the scammers and identify the most lucrative accounts to target.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "phone",
+   "text",
+   "email",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa231017",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA231017",
+  "year": 2023,
+  "title": "Cybercriminals are Targeting Plastic Surgery Offices and Patients",
+  "summary": "The FBI is warning the public about cybercriminals who target plastic surgery offices, surgeons thereof, and patients to harvest personally identifiable information and sensitive medical records, to include sensitive photographs in some instances. Once successful, cybercriminals use social engineering techniques to enhance the harvested data and extort individuals for cryptocurrency.",
+  "scam_type": "extortion",
+  "how": "Someone threatens to expose, hurt or embarrass you or the people close to you, using personal details they found, unless you pay.",
+  "channels": [
+   "email",
+   "text",
+   "social"
+  ],
+  "needs": [
+   "email",
+   "phone",
+   "photo"
+  ]
+ },
+ {
+  "id": "ic3-psa231024",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA231024",
+  "year": 2023,
+  "title": "Scammers Solicit Fake Humanitarian Donations",
+  "summary": "The FBI is warning the public that scammers are committing charity fraud by soliciting fake humanitarian donations during the Israel HAMAS conflict. Scammers quickly pivot to charity fraud when catastrophic events occur, such as a war, a natural disaster, or an epidemic. - As of October 12, 2023, an alleged fake charity scheme circulating on social media and via encrypted messaging platforms directed recipients to a website that may contain malware and claims to solicit cryptocurrency for \"humanitarian\" purposes.",
+  "scam_type": "charity-donation",
+  "how": "A fake charity or campaign asks for donations after a disaster, during a crisis or at election time.",
+  "channels": [
+   "email",
+   "social",
+   "phone"
+  ],
+  "needs": [
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa231115",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA231115",
+  "year": 2023,
+  "title": "2023 Holiday Shopping Scams",
+  "summary": "The FBI warns of criminals targeting online shoppers and sellers during the upcoming holiday season. During the 2022 holiday shopping season, the FBI Internet Crime Complaint Center (IC3) received reports from almost 12,000 victims reporting non-payment/non-delivery scams, resulting in losses over $73 million. Criminals use a multitude of methods to entice and target victims intending to purchase or sell an item online. Buyers - Be Aware!",
+  "scam_type": "online-shopping",
+  "how": "A fake shop, advert or seller takes payment for goods that never arrive.",
+  "channels": [
+   "web",
+   "social",
+   "email"
+  ],
+  "needs": [
+   "email",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa231117",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2023/PSA231117",
+  "year": 2023,
+  "title": "FBI Warns of Scammers Targeting Senior Citizens in Grandparent Scams and Demanding Funds by Wire, Mail, or Couriers",
+  "summary": "The FBI is warning the public of scammers targeting senior citizen victims in grandparent scams and demanding funds by wire, mail, or couriers. - Initial Contact: A scammer calls a senior citizen victim and poses as the victim's grandchild, who is purportedly in jail after causing an automobile accident. In some cases, the accident involves a diplomat or a pregnant woman.",
+  "scam_type": "family-emergency",
+  "how": "Someone calls or texts your family pretending to be you or a relative in trouble, in jail or in an accident, and asks for urgent money.",
+  "channels": [
+   "phone",
+   "in_person",
+   "mail"
+  ],
+  "needs": [
+   "relative",
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa220201",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220201",
+  "year": 2022,
+  "title": "Scammers Exploit Security Weaknesses on Job Recruitment Websites to Impersonate Legitimate Businesses, Threatening Company Reputation and Defrauding Job Seekers",
+  "summary": "The FBI warns that malicious actors or 'scammers' continue to exploit security weaknesses on job recruitment websites to post fraudulent job postings in order to trick applicants into providing personal information or money. These scammers lend credibility to their scheme by using legitimate information to imitate businesses, threatening reputational harm for the business and financial loss for the job seeker.",
+  "scam_type": "job-offer",
+  "how": "A recruiter or employer offers easy remote work, then asks for fees, your bank details or to move money for them.",
+  "channels": [
+   "web",
+   "email"
+  ],
+  "needs": [
+   "email",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa220208",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220208",
+  "year": 2022,
+  "title": "Criminals Increasing SIM Swap Schemes to Steal Millions of Dollars from US Public",
+  "summary": "The Federal Bureau of Investigation is issuing this announcement to inform mobile carriers and the public of the increasing use of Subscriber Identity Module (SIM) swapping by criminals to steal money from fiat and virtual currency accounts. From January 2018 to December 2020, the FBI Internet Crime Complaint Center (IC3) received 320 complaints related to SIM swapping incidents with adjusted losses of approximately $12 million.",
+  "scam_type": "sim-swap",
+  "how": "Someone uses your personal details to move your phone number to their SIM, then receives your login codes.",
+  "channels": [
+   "phone",
+   "email"
+  ],
+  "needs": [
+   "phone",
+   "birthday",
+   "email",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa220216",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220216",
+  "year": 2022,
+  "title": "Business Email Compromise: Virtual Meeting Platforms",
+  "summary": "Business Email Compromise/Email Account Compromise (BEC/EAC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests. The scam is frequently carried out when an individual compromises legitimate business or personal email accounts through social engineering or computer intrusion to conduct unauthorized transfers of funds.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa220307",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220307",
+  "year": 2022,
+  "title": "FBI Warns of the Impersonation of Law Enforcement and Government Officials",
+  "summary": "The FBI is warning the public of ongoing widespread fraud schemes in which scammers impersonate law enforcement or government officials in attempts to extort money or steal personally identifiable information. How It Works Scammers will often spoof authentic phone numbers and names and use fake credentials of well-known government and law enforcement agencies.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone",
+   "text"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa220316",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220316",
+  "year": 2022,
+  "title": "Technical and Customer Support Fraud",
+  "summary": "Tech and Customer Support Fraud involves a criminal posing as technical or customer support/service to defraud unwitting individuals. Criminals may offer support to resolve such issues as a compromised email or bank account, a virus on a computer, or a software license renewal. Recent complaints involve criminals posing as customer support for financial institutions, utility companies, or cryptocurrency exchanges.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "phone",
+   "email",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa220414",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220414",
+  "year": 2022,
+  "title": "Cybercriminals Trick Victims into Transferring Funds to \"Reverse\" Instant Payments",
+  "summary": "Cybercriminals are targeting victims by sending text messages with what appear to be bank fraud alerts asking if the customer initiated an instant money transfer using digital payment applications (apps). Once the victim responds to the alert, the cybercriminal then calls from a number which appears to match the financial institution's legitimate 1-800 support number.",
+  "scam_type": "bank-impersonation",
+  "how": "A caller or text poses as your bank's fraud team, says your account is at risk and gets you to move money or read out a code.",
+  "channels": [
+   "text",
+   "phone"
+  ],
+  "needs": [
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa220504",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220504",
+  "year": 2022,
+  "title": "Business Email Compromise: The $43 Billion Scam",
+  "summary": "This Public Service Announcement is an update and companion piece to Business Email Compromise PSA I-091019-PSA posted on www.ic3.gov. This PSA includes new Internet Crime Complaint Center complaint information and updated statistics from October 2013 to December 2021. Definition Business Email Compromise/Email Account Compromise (BEC/EAC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa220531",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220531",
+  "year": 2022,
+  "title": "The FBI Warns of Scammers Soliciting Donations Related to the Crisis in Ukraine",
+  "summary": "The FBI warns the public of fraudulent schemes seeking donations or other financial assistance related to the crisis in Ukraine. Criminal actors are taking advantage of the crisis in Ukraine by posing as Ukrainian entities needing humanitarian aid or developing fundraising efforts, including monetary and cryptocurrency donations. Scammers similarly have used past crises as opportunities to target members of the public with fraudulent donation schemes.",
+  "scam_type": "charity-donation",
+  "how": "A fake charity or campaign asks for donations after a disaster, during a crisis or at election time.",
+  "channels": [
+   "email",
+   "social"
+  ],
+  "needs": [
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa220628",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220628",
+  "year": 2022,
+  "title": "Deepfakes and Stolen PII Utilized to Apply for Remote Work Positions",
+  "summary": "The FBI Internet Crime Complaint Center (IC3) warns of an increase in complaints reporting the use of deepfakes and stolen Personally Identifiable Information (PII) to apply for a variety of remote work and work-at-home positions. Deepfakes include a video, an image, or recording convincingly altered and manipulated to misrepresent someone as doing or saying something that was not actually done or said.",
+  "scam_type": "identity-theft",
+  "how": "Someone uses your personal details, such as birthday, address and employer, to open accounts, file documents or pass checks in your name.",
+  "channels": [
+   "web"
+  ],
+  "needs": [
+   "photo",
+   "video",
+   "employer",
+   "birthday"
+  ]
+ },
+ {
+  "id": "ic3-psa220721",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA220721",
+  "year": 2022,
+  "title": "Scammers Target and Exploit Owners of Cryptocurrencies in Liquidity Mining Scam",
+  "summary": "Liquidity Mining Liquidity Mining is an investment strategy used to earn passive income with cryptocurrency. In legitimate liquidity mining operations, investors stake1 their cryptocurrency in a liquidity pool to provide traders with the liquidity necessary to conduct transactions. In return, the investor receives a portion of the trading fees.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa221003",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA221003",
+  "year": 2022,
+  "title": "Cryptocurrency Investment Schemes",
+  "summary": "The FBI Miami Field Office, in coordination with the Internet Crime Complaint Center (IC3), warns of investment schemes involving cryptocurrency, called Pig Butchering. In this scheme, fraudsters, posing as highly successful traders in cryptocurrency, entice victims to make purported investments in cryptocurrency providing fictitious returns to encourage additional investments.",
+  "scam_type": "investment",
+  "how": "A stranger or online friend promotes an investment, often crypto or stocks, shows fake profits and gets you to send more and more money.",
+  "channels": [
+   "social",
+   "text"
+  ],
+  "needs": [
+   "handle",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa221004",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA221004",
+  "year": 2022,
+  "title": "Significant Increase in IRS-themed Smishing Campaigns",
+  "summary": "Beginning in the Fall of 2020, IRS's Online Fraud Detection & Prevention (OFDP), which monitors phishing@irs.gov, observed an increase in reports of SMS/text phishing (\"smishing\") requesting taxpayer personal and financial information. These smishing campaigns continued through the pandemic. In recent months and weeks, IRS-themed smishing has increased exponentially.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "text"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa221018",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA221018",
+  "year": 2022,
+  "title": "Potential Fraud Schemes Targeting Individuals Seeking Federal Student Loan Forgiveness",
+  "summary": "The FBI warns of the potential for fraudulent websites, e-mails, texts, or phone scams aiming to defraud individuals seeking federal student loan forgiveness. Scammers will aim to solicit personally identifiable information, financial information, or payment from potential victims. On 24 August 2022, the Student Loan Debt Relief Plan (2022 SDRP) was announced for individuals with incomes below $125,000, or joint filers with incomes below $250,000.",
+  "scam_type": "student-loan",
+  "how": "A call, text or email about student loan forgiveness or financial aid asks for a fee, your login or your personal details.",
+  "channels": [
+   "email",
+   "text",
+   "phone",
+   "web"
+  ],
+  "needs": [
+   "school",
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa221110",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2022/PSA221110",
+  "year": 2022,
+  "title": "Scammers Using Computer-Technical Support Impersonation Scams to Target Victims and Conduct Wire Transfers",
+  "summary": "As recently as October 2022, the FBI observed several instances nationwide of scammers conducting computer-technical support scams, where criminals pose as service representatives of a company's technical or computer repair service and contact victims through email or by telephone about a highly priced, soon-to-renew subscription. Scammers request victims contact the scammers at a provided telephone number or email to cancel the renewal and receive a varying refund amount.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "email",
+   "phone"
+  ],
+  "needs": [
+   "email",
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa210413",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA210413",
+  "year": 2021,
+  "title": "Rise In Use of Cryptocurrency In Business Email Compromise Schemes",
+  "summary": "Business Email Compromise/Email Account Compromise (BEC/EAC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests. The scam is frequently carried out when an individual compromises legitimate business or personal email accounts through social engineering or computer intrusion to conduct unauthorized transfers of funds. The IC3 has received an increased number of BEC complaints involving the use of cryptocurrency.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa210514",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA210514",
+  "year": 2021,
+  "title": "Scammers Target Families Who Post Missing Persons on Social Media",
+  "summary": "The FBI warns the public of scammers seeking to extort family members of missing persons. These actors identify missing persons through social media posts and gather information about the missing person and family to legitimize their ransom demands without ever having physical contact with the missing person.",
+  "scam_type": "extortion",
+  "how": "Someone threatens to expose, hurt or embarrass you or the people close to you, using personal details they found, unless you pay.",
+  "channels": [
+   "phone",
+   "text",
+   "social"
+  ],
+  "needs": [
+   "relative",
+   "phone",
+   "handle",
+   "photo"
+  ]
+ },
+ {
+  "id": "ic3-psa210729",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA210729",
+  "year": 2021,
+  "title": "FBI Warns of a Grandparent Fraud Scheme Using Couriers",
+  "summary": "The FBI warns of criminal actors' alleged use of couriers to collect money in a grandparent fraud scheme. Criminal actors target elderly U.S. citizens in a grandparent fraud scheme in which they arrange for couriers to pick up bail money in person at the victim's residence. Criminals telephonically contact their victims and pose as a grandchild, or another family member, in distress who has been arrested and needs bail money.",
+  "scam_type": "family-emergency",
+  "how": "Someone calls or texts your family pretending to be you or a relative in trouble, in jail or in an accident, and asks for urgent money.",
+  "channels": [
+   "phone",
+   "in_person"
+  ],
+  "needs": [
+   "relative",
+   "phone",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa210902",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA210902",
+  "year": 2021,
+  "title": "FBI Warns about an Increase in Sextortion Complaints",
+  "summary": "The FBI Internet Crime Complaint Center (IC3) warns about a large increase in the number of sextortion complaints. Sextortion occurs when someone threatens to distribute your private and sensitive material if their demands are not met. Oftentimes, the fraudster demands additional sexual images, sexual favors, or money, creating financial and emotional distress for the victim. As of July 31, 2021, the FBI IC3 has received over 16,000 sextortion complaints in 2021, with losses exceeding $8 million.",
+  "scam_type": "sextortion",
+  "how": "Someone threatens to share real or faked intimate images of you with your family and friends unless you pay.",
+  "channels": [
+   "email",
+   "social"
+  ],
+  "needs": [
+   "email",
+   "handle",
+   "photo"
+  ]
+ },
+ {
+  "id": "ic3-psa210916",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA210916",
+  "year": 2021,
+  "title": "Scammers Defraud Victims of Millions of Dollars in New Trend in Romance Scams",
+  "summary": "The FBI warns of a rising trend in which scammers are defrauding victims via online romance scams, persuading individuals to send money to allegedly invest or trade cryptocurrency. From January 1, 2021 — July 31, 2021, the FBI Internet Crime Complaint Center (IC3) received over 1,800 complaints, related to online romance scams, resulting in losses of approximately $133,400,000. The scammer's initial contact is typically made via dating apps and other social media sites.",
+  "scam_type": "romance",
+  "how": "Someone builds a relationship with you on a dating app or social media, then asks for money or gets you to pay for something.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa211104",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA211104",
+  "year": 2021,
+  "title": "The FBI Warns of Fraudulent Schemes Leveraging Cryptocurrency ATMs and QR Codes to Facilitate Payment",
+  "summary": "The FBI warns the public of fraudulent schemes leveraging cryptocurrency ATMs and Quick Response (QR) codes to facilitate payment. The FBI has seen an increase in scammers directing victims to use physical cryptocurrency ATMs and digital QR codes to complete payment transactions. A QR code is a square barcode with information that can be scanned and read with a smartphone camera.",
+  "scam_type": "crypto-atm-payment",
+  "how": "A caller keeps you on the phone and directs you to pay through a crypto cash machine or QR code.",
+  "channels": [
+   "phone"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa211123",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA211123",
+  "year": 2021,
+  "title": "Developing and Selling Scamming Tools to Harvest Credentials of Brand-Name Consumers",
+  "summary": "This product was coordinated with the Cybersecurity and Infrastructure Security Agency. The Federal Bureau of Investigation (FBI) is releasing this PSA to inform the public of recent spear phishing email campaigns targeting consumers of brand-name companies, also known as brand-phishing, through their online User IDs and associated email accounts.",
+  "scam_type": "phishing",
+  "how": "A message copies a real organisation and sends you to a fake login page to steal your password or account.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa211124",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA211124",
+  "year": 2021,
+  "title": "Holiday Scammers Take Advantage of Online Shoppers",
+  "summary": "The FBI warns of cyber criminals targeting shoppers hoping to take advantage of online bargains and hard to find gift items for the holidays. During the 2020 holiday shopping season, the FBI Internet Crime Complaint Center (IC3) received over 17,000 complaints regarding the non-delivery of goods, resulting in losses over $53 million. It is anticipated this number could increase during the 2021 holiday season due to rumors of merchandise shortages and the ongoing pandemic.",
+  "scam_type": "online-shopping",
+  "how": "A fake shop, advert or seller takes payment for goods that never arrive.",
+  "channels": [
+   "web",
+   "social",
+   "email"
+  ],
+  "needs": [
+   "email",
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa211203",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2021/PSA211203",
+  "year": 2021,
+  "title": "Money Mules: A Financial Crisis",
+  "summary": "What Is A Money Mule? Money Mule: Complicity Unwitting or unknowing mules: not aware that they are involved in a bigger criminal scheme. These individuals are typically recruited via scams such as romance scams or more recently, employment scams due to the COVID-19 pandemic. Generally, these individuals genuinely believe they are helping someone who is acting as their romantic partner or employer.",
+  "scam_type": "money-mule",
+  "how": "You are recruited, through a job or a relationship, to receive and pass on money for criminals.",
+  "channels": [
+   "social",
+   "email"
+  ],
+  "needs": [
+   "email",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa200406",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2020/PSA200406",
+  "year": 2020,
+  "title": "Cyber Criminals Conduct Business Email Compromise through Exploitation of Cloud-Based Email Services, Costing US Businesses More Than $2 Billion",
+  "summary": "Cyber criminals are targeting organizations that use popular cloud-based email services to conduct Business Email Compromise (BEC) scams. The scams are initiated through specifically developed phish kits designed to mimic the cloud-based email services in order to compromise business email accounts and request or misdirect transfers of funds.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa200420",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2020/PSA200420",
+  "year": 2020,
+  "title": "Online Extortion Scams Increasing During The Covid-19 Crisis",
+  "summary": "The Internet Crime Complaint Center (IC3) has seen an increase in reports of online extortion scams during the current \"stay-at-home\" orders due to the COVID-19 crisis. Because large swaths of the population are staying at home and likely using the computer more than usual, scammers may use this opportunity to find new victims and pressure them into sending money.",
+  "scam_type": "extortion",
+  "how": "Someone threatens to expose, hurt or embarrass you or the people close to you, using personal details they found, unless you pay.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa200803",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2020/PSA200803",
+  "year": 2020,
+  "title": "FBI Sees Rise In Online Shopping Scams",
+  "summary": "An increasing number of victims are being directed to fraudulent websites via social media platforms and popular online search engines. Methods According to complaints received by the FBI, an increasing number of victims have not received items they purchased from websites offering low prices on items such as gym equipment, small appliances, tools and furniture.",
+  "scam_type": "online-shopping",
+  "how": "A fake shop, advert or seller takes payment for goods that never arrive.",
+  "channels": [
+   "social",
+   "web"
+  ],
+  "needs": [
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa190328",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2019/PSA190328",
+  "year": 2019,
+  "title": "Chinese Embassy Scam",
+  "summary": "Background The Internet Crime Complaint Center (IC3) has received multiple complaints from victims who were contacted via phone, text or other chat application by individuals speaking a Chinese dialect and claiming to be from the Chinese embassy or consulate. Other victims reported being contacted by individuals claiming to be from a shipping company stating there is a package waiting for the victim at the Chinese embassy. The phone calls are frequently spoofed1 in order to appear from a legitimate source.",
+  "scam_type": "government-impersonation",
+  "how": "Someone poses as police, a court, immigration or another government office and threatens arrest, deportation or fines unless you pay or hand over personal details.",
+  "channels": [
+   "phone",
+   "text"
+  ],
+  "needs": [
+   "phone"
+  ]
+ },
+ {
+  "id": "ic3-psa190610",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2019/PSA190610",
+  "year": 2019,
+  "title": "Cyber Actors Exploit 'Secure' Websites In Phishing Campaigns",
+  "summary": "Websites with addresses that start with \"https\" are supposed to provide privacy and security to visitors. After all, the \"s\" stands for \"secure\" in HTTPS: Hypertext Transfer Protocol Secure. In fact, cyber security training has focused on encouraging people to look for the lock icon that appears in the web browser address bar on these secure sites. The presence of \"https\" and the lock icon are supposed to indicate the web traffic is encrypted and that visitors can share data safely.",
+  "scam_type": "phishing",
+  "how": "A message copies a real organisation and sends you to a fake login page to steal your password or account.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa190805",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2019/PSA190805",
+  "year": 2019,
+  "title": "Cyber Actors Use Online Dating Sites To Conduct Confidence/Romance Fraud And Recruit Money Mules",
+  "summary": "What Is Confidence/Romance Fraud? Confidence/romance fraud occurs when an actor deceives a victim into believing they have a trust relationship — whether family, friendly, or romantic — and leverages the relationship to persuade the victim to send money, provide personal and financial information, or purchase items of value for the actor. In some cases, the victim is persuaded to launder money on behalf of the actor. Actors often use online dating sites to pose as U.S. citizens located in a foreign country, U.S.",
+  "scam_type": "romance",
+  "how": "Someone builds a relationship with you on a dating app or social media, then asks for money or gets you to pay for something.",
+  "channels": [
+   "social"
+  ],
+  "needs": [
+   "handle",
+   "photo"
+  ]
+ },
+ {
+  "id": "ic3-psa190910",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2019/PSA190910",
+  "year": 2019,
+  "title": "Business Email Compromise The $26 Billion Scam",
+  "summary": "This Public Service Announcement is an update and companion piece to Business Email Compromise PSA 1-071218-PSA posted on www.ic3.gov. This PSA includes new Internet Crime Complaint Center complaint information and updated statistics from October 2013 to July 2019. Definition Business Email Compromise/Email Account Compromise (BEC/EAC) is a sophisticated scam that targets both businesses and individuals who perform legitimate transfer-of-funds requests.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa191204",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2019/PSA191204",
+  "year": 2019,
+  "title": "Money Mules",
+  "summary": "What is a money mule? A money mule is any individual who transfers funds, in any manner, on behalf of, or at the direction of another. Money mules are recruited by criminals to move funds via a variety of methods including: - Physical currency (cash) - Bank transfers - Money services businesses - Pre-paid cards - Cryptocurrency Individuals acting as a money mule may have received unsolicited emails or other communications containing a job offer promising easy money, have been requested to open a bank account in the…",
+  "scam_type": "money-mule",
+  "how": "You are recruited, through a job or a relationship, to receive and pass on money for criminals.",
+  "channels": [
+   "social",
+   "email"
+  ],
+  "needs": [
+   "email",
+   "handle"
+  ]
+ },
+ {
+  "id": "ic3-psa180117",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180117",
+  "year": 2018,
+  "title": "Fraudulent Online Vehicle Sales",
+  "summary": "As an update to I-111414-PSA, released November 14, 2014, the FBI is issuing additional information and warnings regarding the fraudulent online sale of cars, recreational vehicles, boats, and other outdoor equipment. Criminals are posting online advertisements of items that are not, nor have ever been, within their possession. From May 2014 through December 2017, the IC3 received approximately 26,967 complaints with adjusted losses of $54,032,396 related to these types of fraudulent sales.",
+  "scam_type": "online-shopping",
+  "how": "A fake shop, advert or seller takes payment for goods that never arrive.",
+  "channels": [
+   "web"
+  ],
+  "needs": [
+   "interest"
+  ]
+ },
+ {
+  "id": "ic3-psa180201",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180201",
+  "year": 2018,
+  "title": "Impersonation of the Internet Crime Complaint Center",
+  "summary": "Cyber actors are scamming victims into providing personal information and downloading malicious files by impersonating the Internet Crime Complaint Center (IC3). In a recent scam, the unknown actors emailed victims requesting the recipients provide additional information in order to be paid restitution. In an attempt to make the emails appear legitimate, the scammers included hyperlinks of news articles which detailed the arrest or apprehension of an internet fraudster.",
+  "scam_type": "recovery",
+  "how": "After you lose money to a scam, someone poses as a lawyer, agency or recovery firm and charges a fee to get it back.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa180221",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180221",
+  "year": 2018,
+  "title": "Increase in W-2 Phishing Campaigns",
+  "summary": "Beginning in January 2017, IRS's Online Fraud Detection & Prevention (OFDP), which monitors for suspected IRS-related phishing emails, observed an increase in reports of compromised or spoofed emails requesting W-2 information. Sometimes these requests were followed by or combined with a request for an unauthorized wire transfer.",
+  "scam_type": "phishing",
+  "how": "A message copies a real organisation and sends you to a fake login page to steal your password or account.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa180328",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180328",
+  "year": 2018,
+  "title": "Tech Support Fraud",
+  "summary": "Based on new reporting, the Internet Crime Complaint Center (IC3) is providing updated guidance regarding technical support fraud. Tech Support Fraud involves a criminal claiming to provide customer, security, or technical support in an effort to defraud unwitting individuals. This type of fraud continues to be a problematic and widespread scam. In 2017, the IC3 received approximately 11,000 complaints related to tech support fraud.",
+  "scam_type": "tech-support",
+  "how": "A pop-up, call or email claims your computer or account has a problem, then a fake support agent takes remote access and moves your money.",
+  "channels": [
+   "phone",
+   "email",
+   "web"
+  ],
+  "needs": [
+   "phone",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa180611",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180611",
+  "year": 2018,
+  "title": "Business Email Compromise Contributes To Large Scale Business Losses Nationwide",
+  "summary": "Business Email Compromise (BEC) schemes have cost victims billions of dollars in fraud losses over the last five years. This activity is a pervasive threat with significant financial losses and a considerable global impact. What Is BEC? BEC is a sophisticated scam in which a criminal actor uses email to impersonate a business executive or other employee to request fraudulent payments or obtain access to employee payroll or W2 information.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa180712",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180712",
+  "year": 2018,
+  "title": "Business E-mail Compromise The 12 Billion Dollar Scam",
+  "summary": "This Public Service Announcement (PSA) is an update and companion to Business E-mail Compromise (BEC) PSA I-050417-PSA posted on www.ic3.gov. This PSA includes new Internet Crime Complaint Center (IC3) complaint information and updated statistical data for the time frame October 2013 to May 2018. Definition Business E-mail Compromise (BEC)/E-mail Account Compromise (EAC) is a sophisticated scam targeting both businesses and individuals performing wire transfer payments.",
+  "scam_type": "business-email-compromise",
+  "how": "A message that looks like it is from your boss, a colleague or a supplier asks you to move money, change payment details or share staff records.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa180807",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180807",
+  "year": 2018,
+  "title": "Extortionists Increasingly Using Recipients' Personal Information To Intimidate Victims",
+  "summary": "The Internet Crime Complaint Center (IC3) has recently received an increase in reports about extortion attempts received via e-mail and postal mail and using specific user information to add authenticity. While there are many variations in these extortion attempts, they often share certain commonalties. Scam Commonalties Extortion attempts vary widely, but there are a few common indicators of the scam. The following list of commonalities is not exhaustive, but intended as examples of red flags.",
+  "scam_type": "extortion",
+  "how": "Someone threatens to expose, hurt or embarrass you or the people close to you, using personal details they found, unless you pay.",
+  "channels": [
+   "email",
+   "mail"
+  ],
+  "needs": [
+   "email",
+   "location"
+  ]
+ },
+ {
+  "id": "ic3-psa180918",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA180918",
+  "year": 2018,
+  "title": "Cybercriminals Utilize Social Engineering Techniques To Obtain Employee Credentials To Conduct Payroll Diversion",
+  "summary": "The IC3 has received complaints reporting cybercriminals are targeting the online payroll accounts of employees in a variety of industries. Institutions most affected are education, healthcare, and commercial airway transportation. Methodologies Cybercriminals target employees through phishing emails designed to capture an employee's login credentials.",
+  "scam_type": "payroll-diversion",
+  "how": "A fake staff portal or email steals your work login and reroutes your pay.",
+  "channels": [
+   "email"
+  ],
+  "needs": [
+   "employer",
+   "email"
+  ]
+ },
+ {
+  "id": "ic3-psa181024",
+  "source": "FBI IC3",
+  "url": "https://www.ic3.gov/PSA/2018/PSA181024",
+  "year": 2018,
+  "title": "Business Email Compromise: Gift Cards",
+  "summary": "The Internet Crime Complaint Center (IC3) received an increase in the number of Business Email Compromise (BEC) complaints requesting victims purchase gift cards. The victims received either a spoofed email, a spoofed phone call or a spoofed text from a person in authority requesting the victim purchase multiple gift cards for either personal or business reasons.",
+  "scam_type": "boss-gift-cards",
+  "how": "A message that appears to come from your boss, professor or someone in authority asks you to buy gift cards and send the codes.",
+  "channels": [
+   "email",
+   "text",
+   "phone"
+  ],
+  "needs": [
+   "employer",
+   "email",
+   "phone"
+  ]
+ }
+]
