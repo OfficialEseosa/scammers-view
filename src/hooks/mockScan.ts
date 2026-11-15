@@ -103,13 +103,43 @@ const chain2: ScanEvent = {
 
 const sources: SourceType[] = ["web", "github", "linkedin", "instagram", "x", "tiktok", "school", "broker", "personal_site", "news"];
 
+const MOCK_LABEL: Partial<Record<SourceType, string>> = {
+  web: "Web search: name, school, email",
+  github: "GitHub: profile, repos, commits",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  x: "X / Twitter, Reddit",
+  tiktok: "TikTok",
+  school: "School and club pages",
+  broker: "People-search listings",
+  personal_site: "Personal sites, portfolios",
+  news: "News and articles",
+};
+const MOCK_QUERY: Partial<Record<SourceType, string>> = {
+  web: '"Alex Rivera" Lakeview',
+  github: "GitHub public API",
+  linkedin: '"Alex Rivera" site:linkedin.com',
+  instagram: "usernames built from the name and email",
+  x: '"Alex Rivera" site:x.com',
+  tiktok: "usernames built from the name and email",
+  school: '"Alex Rivera" roster OR team',
+  broker: '"Alex Rivera" Riverside',
+  personal_site: '"Alex Rivera" portfolio',
+  news: '"Alex Rivera" news',
+};
+
 export function buildMockTimeline(): MockStep[] {
   const steps: MockStep[] = [];
   const add = (at: number, event: ScanEvent) => steps.push({ at, event });
 
   add(200, { type: "status", message: "Preparing a search for you" });
-  sources.forEach((s, i) => add(500 + i * 260, { type: "source_started", sourceType: s }));
-  add(3200, { type: "status", message: "Reading public pages" });
+  sources.forEach((s, i) => add(500 + i * 260, { type: "source_started", sourceType: s, agentId: s, agentLabel: MOCK_LABEL[s], query: MOCK_QUERY[s] }));
+  add(3200, { type: "status", message: "Reading public pages in full" });
+  // Round two: leads that only exist because of what round one confirmed.
+  add(6200, { type: "source_started", sourceType: "other", agentId: "follow_handles", agentLabel: "Follow-up: username reuse", query: '"alexr_codes"' });
+  add(8400, { type: "source_started", sourceType: "school", agentId: "follow_orgs", agentLabel: "Follow-up: employers and organizations", query: '"Alex Rivera" "Lakeview High School"' });
+  add(11200, { type: "source_done", sourceType: "other", agentId: "follow_handles", count: 2 });
+  add(13400, { type: "source_done", sourceType: "school", agentId: "follow_orgs", count: 1 });
 
   const findingTimes = findings.map((_, i) => 3600 + i * 1000); // ~1s apart so the map can settle between facts
   const counts: Partial<Record<SourceType, number>> = {};
@@ -119,7 +149,7 @@ export function buildMockTimeline(): MockStep[] {
   });
 
   const doneAt = sources.map((_, i) => 4400 + i * 1150);
-  sources.forEach((s, i) => add(doneAt[i], { type: "source_done", sourceType: s, count: counts[s] ?? 0 }));
+  sources.forEach((s, i) => add(doneAt[i], { type: "source_done", sourceType: s, agentId: s, count: counts[s] ?? 0 }));
 
   add(15000, { type: "status", message: "Working out how this could be used against you" });
   add(15800, {

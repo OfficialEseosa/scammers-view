@@ -19,6 +19,24 @@ export interface SourceStatus {
   query?: string;
 }
 
+/** One line in the live account of what the agents are doing. */
+export interface AgentLine {
+  n: number;
+  /** start: a search began. lead: a follow-up on something already confirmed. done: an agent finished. link: facts joined into an attack. note: anything else. */
+  kind: "start" | "lead" | "done" | "link" | "note";
+  text: string;
+  /** The search itself. Can name the person, so it is hidden when values are masked. */
+  detail?: string;
+}
+
+const LOG_MAX = 60;
+
+function addLine(state: ScanState, line: Omit<AgentLine, "n">): AgentLine[] {
+  const log = state.log ?? [];
+  const n = (log[log.length - 1]?.n ?? 0) + 1;
+  return [...log, { ...line, n }].slice(-LOG_MAX);
+}
+
 export interface ScanState {
   phase: ScanPhase;
   message: string;
@@ -31,6 +49,12 @@ export interface ScanState {
   cachedAt: number | null;
   /** "Not me" ids that came with a saved scan, for the session to restore. */
   savedNotMeIds?: string[] | null;
+  /** What the agents did, oldest first. Missing on scans saved before this existed. */
+  log?: AgentLine[];
+  /** Agent id to its label, so a finished agent can be named. */
+  agents?: Record<string, string>;
+  /** Agents started and not yet finished. */
+  active?: number;
 }
 
 const initial: ScanState = {
@@ -42,6 +66,9 @@ const initial: ScanState = {
   chains: [],
   error: null,
   cachedAt: null,
+  log: [],
+  agents: {},
+  active: 0,
 };
 
 type Action =
@@ -63,26 +90,44 @@ function reducer(state: ScanState, action: Action): ScanState {
   const running: ScanState = state.phase === "connecting" ? { ...state, phase: "running", message: "Scanning" } : state;
   switch (e.type) {
     case "status":
-      return { ...running, message: e.message };
-    case "source_started":
+      return { ...running, message: e.message, log: addLine(running, { kind: "note", text: e.message }) };
+    case "source_started": {
+      const label = e.agentLabel ?? e.sourceType;
+      const lead = /^follow-up:\s*/i.test(label);
+      const text = lead ? `Following a lead: ${label.replace(/^follow-up:\s*/i, "")}` : /^(looking|reading)/i.test(label) ? label : `Searching: ${label}`;
       return {
         ...running,
         sources: { ...running.sources, [e.sourceType]: { status: "running", count: running.sources[e.sourceType]?.count ?? 0, query: e.query } },
+        agents: e.agentId ? { ...running.agents, [e.agentId]: label } : running.agents,
+        active: (running.active ?? 0) + 1,
+        log: addLine(running, { kind: lead ? "lead" : "start", text, detail: e.query }),
       };
-    case "source_done":
+    }
+    case "source_done": {
+      const label = (e.agentId && running.agents?.[e.agentId]) || e.sourceType;
+      const name = /^follow-up:\s*/i.test(label) ? `Lead checked, ${label.replace(/^follow-up:\s*/i, "")}` : label;
       return {
         ...running,
         sources: { ...running.sources, [e.sourceType]: { status: "done", count: e.count, query: running.sources[e.sourceType]?.query } },
+        active: Math.max(0, (running.active ?? 0) - 1),
+        log: addLine(running, { kind: "done", text: e.count > 0 ? `${name}: ${e.count} ${e.count === 1 ? "fact" : "facts"} kept` : `${name}: nothing public` }),
       };
+    }
     case "finding":
       if (running.findings.some((f) => f.id === e.finding.id)) return running;
       return { ...running, findings: [e.finding, ...running.findings] };
     case "score":
       return { ...running, score: e.score };
-    case "chain":
-      return { ...running, chains: [...running.chains.filter((c) => c.id !== e.chain.id), e.chain] };
+    case "chain": {
+      const used = new Set(e.chain.steps.flatMap((st) => st.findingIds)).size;
+      return {
+        ...running,
+        chains: [...running.chains.filter((c) => c.id !== e.chain.id), e.chain],
+        log: addLine(running, { kind: "link", text: `Connected ${used} ${used === 1 ? "fact" : "facts"} into a way in: ${e.chain.target}` }),
+      };
+    }
     case "done":
-      return { ...running, phase: "done", message: "Scan complete" };
+      return { ...running, phase: "done", message: "Scan complete", active: 0 };
     case "error":
       return { ...running, phase: "error", error: e.message };
   }

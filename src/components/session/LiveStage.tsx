@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SourceType } from "@/lib/types";
-import type { SourceStatus } from "@/hooks/useScanStream";
+import type { AgentLine, SourceStatus } from "@/hooks/useScanStream";
 import { SOURCE_LABEL, SOURCE_ORDER } from "@/components/scan/meta";
 import { FindingFeed } from "@/components/scan/FindingFeed";
 import { HiddenNotMe } from "@/components/scan/NotMe";
@@ -101,7 +101,7 @@ export function LiveStage() {
 }
 
 function Status({ compact = false, eta }: { compact?: boolean; eta: string | null }) {
-  const { scan, liveScore } = useSession();
+  const { scan, liveScore, masked } = useSession();
   const running = scan.phase === "connecting" || scan.phase === "running";
   const headline = scan.phase === "error" ? "Stopped" : scan.phase === "done" ? "Scan complete" : scan.message;
   return (
@@ -142,8 +142,49 @@ function Status({ compact = false, eta }: { compact?: boolean; eta: string | nul
         <>
           <FindingsSparkline findings={scan.findings} className="mt-3" height={56} />
           <SourceTiles sources={scan.sources} />
+          <AgentLog lines={scan.log ?? []} active={running ? (scan.active ?? 0) : 0} masked={masked} />
         </>
       )}
+    </div>
+  );
+}
+
+const LINE_MARK: Record<AgentLine["kind"], string> = { start: "\u25B8", lead: "\u21B3", done: "\u2713", link: "\u2726", note: "\u00B7" };
+
+/** What the agents are doing right now, in their own steps: searches, leads followed, facts joined. */
+function AgentLog({ lines, active, masked }: { lines: AgentLine[]; active: number; masked: boolean }) {
+  if (lines.length === 0) return null;
+  const shown = lines.slice(-6);
+  return (
+    <div className="mt-4 border-t border-edge pt-3">
+      <p className="flex items-center justify-between font-mono text-xs uppercase tracking-wider text-muted">
+        <span>Agent activity</span>
+        {active > 0 && (
+          <span className="text-fg">
+            {active} {active === 1 ? "agent" : "agents"} working
+          </span>
+        )}
+      </p>
+      <ol className="mt-2 flex flex-col gap-1.5" aria-live="off">
+        {shown.map((l, i) => (
+          <li
+            key={l.n}
+            className={cn(
+              "sv-log-line flex gap-2 font-mono text-xs leading-snug",
+              l.kind === "lead" || l.kind === "link" ? "text-fg" : "text-muted",
+              i === shown.length - 1 && "text-fg",
+            )}
+          >
+            <span aria-hidden className={cn("w-3 shrink-0 text-center", l.kind === "link" && "text-danger", l.kind === "done" && "text-safe")}>
+              {LINE_MARK[l.kind]}
+            </span>
+            <span className="min-w-0">
+              {l.text}
+              {l.detail && !masked && <span className="block truncate text-muted">{l.detail}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

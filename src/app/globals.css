@@ -4,3 +4,19 @@
 
 /* App-wide styles live in src/design. */
 
+
+/* A new line in the live agent log slides up into place. */
+.sv-log-line {
+  animation: sv-log-in 320ms var(--ease-out, ease-out) both;
+}
+@keyframes sv-log-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-log-line {
+    animation: none;
+  }
+}
