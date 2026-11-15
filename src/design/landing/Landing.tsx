@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BrandMark } from "../BrandMark";
+import { buttonClass } from "../Button";
 import { ThemeToggle } from "../ThemeToggle";
 import { DotField, Grain } from "../backgrounds";
 import { Hero } from "./Hero";
@@ -27,6 +28,9 @@ export function Landing({ cta, endCta }: { cta: ReactNode; endCta: ReactNode }) 
           <Link href="#how" className="text-muted hover:text-fg max-sm:hidden">
             How it works
           </Link>
+          <a href="/scammers-view-extension.zip" download className={buttonClass("secondary", "sm", "max-md:hidden")}>
+            Get the extension
+          </a>
           <Link href="#compare" className="text-muted hover:text-fg max-md:hidden">
             Compare
           </Link>
