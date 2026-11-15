@@ -321,24 +321,29 @@
 
 .fm-chains {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 22px 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* Never let chips paint over each other when the panel is narrow. */
+  overflow: visible;
 }
 .fm-chip {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: 44px;
-  padding: 0 16px 0 8px;
+  padding: 6px 14px 6px 8px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface);
   color: var(--text);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-align: left;
   transition:
     background 180ms ease,
     color 180ms ease,
@@ -351,6 +356,7 @@
 .fm-chip-n {
   display: grid;
   place-items: center;
+  flex: none;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -358,9 +364,18 @@
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
 }
+.fm-chip-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .fm-chip-meta {
+  flex: none;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 .fm-chip-on {
   background: var(--text);
@@ -376,6 +391,18 @@
 .fm-chip-cut {
   border-style: dashed;
   border-color: var(--safe);
+}
+.fm-root.fm-compact .fm-chains {
+  padding: 0 12px 10px;
+  gap: 6px;
+}
+.fm-root.fm-compact .fm-chip {
+  max-width: calc(50% - 3px);
+  font-size: 0.8125rem;
+  padding: 5px 12px 5px 6px;
+}
+.fm-root.fm-compact .fm-chip-meta {
+  display: none;
 }
 
 .fm-player {

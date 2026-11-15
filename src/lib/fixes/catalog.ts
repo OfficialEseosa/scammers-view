@@ -61,9 +61,8 @@ const PLATFORMS: Record<string, Platform> = {
     link: "https://github.com/settings/emails",
     linkConfirmed: true,
     steps: [
-      "Open Settings, then Emails (github.com/settings/emails).",
-      "Tick Keep my email addresses private.",
-      "Tick Block command line pushes that expose my email.",
+      "Press Clean this up for me — the agent opens GitHub Emails in your Chrome (you must be signed in).",
+      "Press Do it when it highlights Keep my email addresses private, then again for Block command line pushes that expose my email.",
       "Copy your noreply address (ID+username@users.noreply.github.com) from that page.",
       "On each computer run: git config --global user.email \"<your noreply address>\".",
     ],

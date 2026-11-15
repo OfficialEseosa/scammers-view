@@ -2,12 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Is this a scam?</title>
+    <title>Scammer's View</title>
     <link rel="stylesheet" href="ui.css" />
   </head>
   <body>
-    <h1><img src="icons/32.png" alt="" /> Is this a scam?</h1>
+    <h1><img src="icons/32.png" alt="" /> Scammer's View</h1>
     <div class="stack">
+      <section id="cleanup" class="stack" hidden aria-live="polite">
+        <div class="card">
+          <p class="muted small">Cleanup agent</p>
+          <h2 id="cleanup-site">Working…</h2>
+          <p id="cleanup-text" class="small"></p>
+          <ol id="cleanup-log" class="small"></ol>
+        </div>
+      </section>
       <div id="result" class="stack" aria-live="polite">
         <p class="muted">Select text or a link on any page, right-click, and choose “Check with Scammer’s View”. Or paste a message below.</p>
       </div>

@@ -3,8 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ExposureScore, Finding } from "@/lib/types";
-import { useScanStream } from "@/hooks/useScanStream";
+import { useScanStream, type ScanState } from "@/hooks/useScanStream";
 import { excludeNotMe } from "@/state/notMe";
+import { clearSession, loadSession, saveSession, type SavedSession } from "@/state/sessionPersist";
 import { usePresentationMode } from "@/hooks/usePresentationMode";
 import { clearFaceData } from "@/features/face";
 import { clearVoiceData } from "@/lib/voice-exposure/store";
@@ -14,9 +15,10 @@ import { leave } from "@/app/actions";
 import type { CallScenarioId } from "@/lib/call/schema";
 
 /**
- * One in-memory store for the whole session: scan results, fixes the user ticked,
- * face-match status and where they are in the flow. Nothing here touches
- * localStorage; a reload, leaving /scan or "End session" wipes all of it.
+ * One store for the whole session: scan results, fixes the user ticked, face-match status
+ * and where they are in the flow. A refresh restores the last scan in this tab
+ * (sessionStorage, up to 8 hours). "End session" and closing the tab wipe it.
+ * Face images and voice samples are never persisted.
  */
 
 export type Stage = "face" | "live" | "results" | "ended";
@@ -38,11 +40,15 @@ export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated:
   { id: "family", label: "Family", short: "Family", gated: false, more: true },
 ];
 
+const TAB_IDS = new Set(RESULT_TABS.map((t) => t.id));
+
 type Scan = ReturnType<typeof useScanStream>;
 
 export interface Session {
   mock: boolean;
   subjectName: string;
+  /** Signed-in email for cleanup forms. Empty in the fictional demo. */
+  subjectEmail: string;
   stage: Stage;
   setStage: (s: Stage) => void;
   face: FaceStatus;
@@ -82,6 +88,25 @@ function dropCallTickets() {
   void fetch("/api/call", { method: "DELETE", keepalive: true }).catch(() => {});
 }
 
+function toScanState(scan: NonNullable<SavedSession["scan"]>): ScanState {
+  return {
+    phase: scan.phase,
+    message: scan.message,
+    sources: scan.sources as ScanState["sources"],
+    findings: scan.findings,
+    score: scan.score,
+    chains: scan.chains,
+    error: scan.error,
+  };
+}
+
+function bootStage(boot: SavedSession | null): Stage {
+  if (!boot) return "face";
+  // Finished scan → results. Mid-scan (or results without a snapshot) → live, stream restarts.
+  if (boot.scan?.phase === "done") return "results";
+  return "live";
+}
+
 const Ctx = createContext<Session | null>(null);
 
 export function useSession(): Session {
@@ -93,21 +118,60 @@ export function useSession(): Session {
 const EMPTY: string[] = [];
 const NO_FINDINGS: Finding[] = [];
 
-export function SessionProvider({ mock, subjectName, children }: { mock: boolean; subjectName: string; children: ReactNode }) {
+export function SessionProvider({ mock, subjectName, subjectEmail = "", children }: { mock: boolean; subjectName: string; subjectEmail?: string; children: ReactNode }) {
+  // sessionStorage is client-only; wait one frame so SSR/hydration don't disagree.
+  const [boot, setBoot] = useState<SavedSession | null | undefined>(undefined);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage can only be read after hydration
+    setBoot(loadSession(mock, subjectEmail));
+  }, [mock, subjectEmail]);
+
+  if (boot === undefined) {
+    return <div className="sv-skeleton min-h-[50vh] w-full" aria-label="Restoring session" />;
+  }
+
+  return (
+    <SessionReady mock={mock} subjectName={subjectName} subjectEmail={subjectEmail} boot={boot}>
+      {children}
+    </SessionReady>
+  );
+}
+
+function SessionReady({
+  mock,
+  subjectName,
+  subjectEmail,
+  boot,
+  children,
+}: {
+  mock: boolean;
+  subjectName: string;
+  subjectEmail: string;
+  boot: SavedSession | null;
+  children: ReactNode;
+}) {
   const router = useRouter();
-  const [stage, setStage] = useState<Stage>("face");
-  const [face, setFace] = useState<FaceStatus>("pending");
-  const [removed, setRemoved] = useState<string[]>(EMPTY);
-  const [tab, setTab] = useState<ResultsTab>("fixes");
-  const [unlocked, setUnlocked] = useState(false);
+  const [stage, setStage] = useState<Stage>(() => bootStage(boot));
+  const [face, setFace] = useState<FaceStatus>(() => boot?.face ?? "pending");
+  const [removed, setRemoved] = useState<string[]>(() => (boot?.removedFindingIds.length ? boot.removedFindingIds : EMPTY));
+  const [tab, setTab] = useState<ResultsTab>(() => (boot && TAB_IDS.has(boot.tab as ResultsTab) ? (boot.tab as ResultsTab) : "fixes"));
+  const [unlocked, setUnlocked] = useState(() => Boolean(boot?.unlocked));
   const [callScenario, setCallScenario] = useState<CallScenarioId | null>(null);
   const [masked, setMasked] = usePresentationMode();
   const [ending, startEnding] = useTransition();
 
-  const [notMe, setNotMe] = useState<Finding[]>(NO_FINDINGS);
+  const [notMe, setNotMe] = useState<Finding[]>(() => (boot?.notMe.length ? boot.notMe : NO_FINDINGS));
   const [notMeUndo, setNotMeUndo] = useState<{ ids: string[]; at: number } | null>(null);
 
-  const raw = useScanStream(mock, stage === "live" || stage === "results");
+  const restoreScan = useMemo<ScanState | null>(
+    () => (boot?.scan?.phase === "done" ? toScanState(boot.scan) : null),
+    [boot],
+  );
+  // Only hand the snapshot to the stream hook while we're on results; leaving that stage must reset.
+  const restoreActive = stage === "results" ? restoreScan : null;
+  // Finished results: show them without opening a new (billable) stream. Mid-scan refresh restarts the stream.
+  const stream = stage === "live" || (stage === "results" && !restoreScan);
+  const raw = useScanStream(mock, stream, restoreActive);
   const notMeIds = useMemo<ReadonlySet<string>>(() => new Set(notMe.map((f) => f.id)), [notMe]);
   const kept = useMemo(() => excludeNotMe(raw.findings, raw.chains, raw.score, notMeIds), [raw.findings, raw.chains, raw.score, notMeIds]);
   const scan = useMemo<Scan>(() => ({ ...raw, ...kept }), [raw, kept]);
@@ -133,20 +197,48 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
 
   const dismissNotMeUndo = useCallback(() => setNotMeUndo(null), []);
 
-  // Face data lives in a module store; make sure it never outlives this screen.
+  // Biometrics stay on this device only for the live page view; a refresh forgets them but keeps the scan.
   useEffect(() => {
-    const wipe = () => {
+    const wipeBio = () => {
       clearFaceData();
       clearVoiceData();
       disposeVoiceEngine();
       dropCallTickets();
     };
-    window.addEventListener("pagehide", wipe);
+    window.addEventListener("pagehide", wipeBio);
     return () => {
-      window.removeEventListener("pagehide", wipe);
-      wipe();
+      window.removeEventListener("pagehide", wipeBio);
+      wipeBio();
     };
   }, []);
+
+  // Keep the tab's work across refresh.
+  useEffect(() => {
+    if (stage !== "live" && stage !== "results") return;
+    if (face !== "verified" && face !== "skipped") return;
+    saveSession({
+      mock,
+      email: subjectEmail,
+      stage,
+      face,
+      tab,
+      unlocked,
+      removedFindingIds: removed,
+      notMe,
+      scan:
+        raw.phase === "done"
+          ? {
+              phase: raw.phase,
+              message: raw.message,
+              sources: raw.sources,
+              findings: raw.findings,
+              score: raw.score,
+              chains: raw.chains,
+              error: raw.error,
+            }
+          : null,
+    });
+  }, [mock, subjectEmail, stage, face, tab, unlocked, removed, notMe, raw.phase, raw.message, raw.sources, raw.findings, raw.score, raw.chains, raw.error]);
 
   const setRemovedFindingIds = useCallback((ids: string[]) => {
     setRemoved((cur) => (cur.join("|") === ids.join("|") ? cur : ids.length ? ids : EMPTY));
@@ -160,6 +252,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
   }, [scan.score, scan.findings, scan.chains, removed]);
 
   const endSession = useCallback(() => {
+    clearSession();
     clearFaceData();
     clearVoiceData();
     disposeVoiceEngine();
@@ -182,6 +275,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
     () => ({
       mock,
       subjectName,
+      subjectEmail,
       stage,
       setStage,
       face,
@@ -212,7 +306,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
         window.scrollTo({ top: 0 });
       },
     }),
-    [mock, subjectName, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, callScenario],
+    [mock, subjectName, subjectEmail, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, callScenario],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

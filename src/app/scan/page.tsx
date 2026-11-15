@@ -23,11 +23,11 @@ async function Gate({ searchParams }: { searchParams: PageProps<"/scan">["search
   const sp = await searchParams;
 
   // Fictional demo sequence: no identity, no network, safe without sign-in.
-  if (sp.mock === "1") return <ScanScreen name="Alex Rivera" mock />;
+  if (sp.mock === "1") return <ScanScreen name="Alex Rivera" email="alex@example.edu" mock />;
 
   const subject = await getScanSubject();
   if (!subject) redirect("/");
   if (!(await cookies()).get(CONSENT_COOKIE)) redirect("/consent");
 
-  return <ScanScreen name={subject.name} mock={false} />;
+  return <ScanScreen name={subject.name} email={subject.email} mock={false} />;
 }

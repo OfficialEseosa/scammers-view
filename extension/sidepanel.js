@@ -94,9 +94,33 @@ async function render(last) {
   );
 }
 
-chrome.storage.session.get("last").then(({ last }) => render(last));
+function renderCleanup(live) {
+  const box = document.getElementById("cleanup");
+  const site = document.getElementById("cleanup-site");
+  const text = document.getElementById("cleanup-text");
+  const log = document.getElementById("cleanup-log");
+  if (!box || !site || !text || !log) return;
+  if (!live || (!live.running && !live.text)) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  site.textContent = live.site ? `Cleanup · ${live.site}` : "Cleanup agent";
+  text.textContent = live.text || "";
+  log.replaceChildren();
+  for (const line of Array.isArray(live.log) ? live.log.slice(-8) : []) {
+    log.append(el("li", {}, String(line)));
+  }
+}
+
+chrome.storage.session.get(["last", "cleanupLive"]).then(({ last, cleanupLive }) => {
+  renderCleanup(cleanupLive);
+  void render(last);
+});
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "session" && changes.last) void render(changes.last.newValue);
+  if (area !== "session") return;
+  if (changes.last) void render(changes.last.newValue);
+  if (changes.cleanupLive) renderCleanup(changes.cleanupLive.newValue);
 });
 
 document.getElementById("paste").addEventListener("submit", (e) => {

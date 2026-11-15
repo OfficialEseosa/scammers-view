@@ -1,6 +1,29 @@
 # scammers-view
 See your public footprint the way a scammer would, then fix it. Self-scan only.
 
+## CI and unit tests
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request to `main`:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm test          # all src/lib/**/*.test.ts and *.test.mjs (no API keys needed)
+```
+
+Or locally: `npm run ci`. Individual suites: `npm run test:cleanup`, `npm run test:gmail`, and so on.
+
+## Cleanup agent
+
+After a scan, each fix can offer **Clean this up for me**:
+
+- **Data brokers** (Spokeo, Whitepages, …): an AI agent fills the opt-out form in your Chrome (or in a server browser). It asks before every submit, hands over for robot checks, and can optionally open confirmation links from your Gmail.
+- **Your accounts** (Instagram, LinkedIn, GitHub, …): the Chrome extension opens the settings page you're already signed into, points at the switch, and waits for **Do it**. GitHub turns on both email-privacy checkboxes; you still set `git config` locally with your noreply address. A personal access token remains an optional fallback for visibility only.
+- **2FA / security questions**: prepares a strong answer and opens the page; you make the change.
+
+It never stores passwords. What it did is kept in memory for the day (and the extension can remind you monthly to re-check brokers). Reload the unpacked extension from `extension/` after pulling so the agent permissions are current. Optional: set `CLEANUP_CHROME_PATH` if the server browser can't find Chrome; set `CLEANUP_SERVER_BROWSER=off` to disable it.
+
 ## Automatic scam checks
 
 ### Reported links and numbers
@@ -24,7 +47,9 @@ The app checks them, revokes the access straight away and keeps only the verdict
 client as sign-in. In the Google Cloud project:
 
 1. APIs & Services → Library → enable **Gmail API**.
-2. OAuth consent screen → Data access (scopes) → add `https://www.googleapis.com/auth/gmail.readonly`.
+2. OAuth consent screen → Data access (scopes) → add `https://www.googleapis.com/auth/gmail.readonly`
+   and `https://www.googleapis.com/auth/gmail.send` (send is only used when a student starts cleanup
+   and approves a removal email).
 3. OAuth consent screen → Audience → keep the app in **Testing** and add yourself and teammates
    as **test users** (up to 100). Opening it to everyone needs Google's verification for Gmail
    access, which takes weeks.

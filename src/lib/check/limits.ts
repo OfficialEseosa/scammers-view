@@ -4,7 +4,7 @@
  */
 
 const WINDOW_MS = 60 * 60 * 1000;
-export const CHECKS_PER_HOUR = { text: 60, image: 15 } as const;
+export const CHECKS_PER_HOUR = { text: 60, image: 15, agent: 400, browser: 30, verify: 60 } as const;
 export type CheckKind = keyof typeof CHECKS_PER_HOUR;
 
 const MAX_KEYS = 10_000;

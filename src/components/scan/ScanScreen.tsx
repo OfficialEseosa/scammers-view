@@ -7,9 +7,9 @@ import { LiveStage } from "@/components/session/LiveStage";
 import { Results } from "@/components/session/Results";
 import { NotMeUndoToast } from "@/components/scan/NotMe";
 
-export function ScanScreen({ name, mock }: { name: string; mock: boolean }) {
+export function ScanScreen({ name, email = "", mock }: { name: string; email?: string; mock: boolean }) {
   return (
-    <SessionProvider mock={mock} subjectName={name}>
+    <SessionProvider mock={mock} subjectName={name} subjectEmail={email}>
       <SessionBar />
       <Flow />
       <NotMeUndoToast />
