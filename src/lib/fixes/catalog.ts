@@ -465,6 +465,7 @@ export function buildCandidates(findings: Finding[]): FixTemplate[] {
       linkConfirmed: true,
       removesFindingIds: fs.map((f) => f.id),
       effort: "15 min",
+      contact: { site: host, listingUrl: fs[0].sourceUrl, findingIds: fs.map((f) => f.id) },
     });
   }
 

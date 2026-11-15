@@ -2,13 +2,14 @@ import { z } from "zod";
 import { getScanSubject, getSessionSubject } from "@/lib/auth/subject";
 import { takeCheck } from "@/lib/check/limits";
 import { buildRawEmail, brokerForEmail, confirmationLinks } from "@/lib/cleanup/mail";
+import { findSiteContact, recipientAllowed } from "@/lib/cleanup/contact";
 import { addLog, logOwner } from "@/lib/cleanup/log";
 import { BROKER_SITES } from "@/lib/cleanup/sites";
 import { cleanupOwner } from "@/lib/cleanup/tasks";
 import { getMessage, searchMessages, sendRaw } from "@/lib/gmail/api";
 import { bodyText, header } from "@/lib/gmail/message";
 import { endGmailSession, gmailSession, countSend } from "@/lib/gmail/session";
-import { templateDraft } from "@/lib/fixes/optout";
+import { siteDraft, templateDraft } from "@/lib/fixes/optout";
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -27,11 +28,32 @@ const ConfirmBody = z.object({
   brokerId: z.string().min(1).max(40),
 });
 
+const Fields = z.array(z.object({ label: z.string().max(80), value: z.string().max(200) })).min(1).max(10);
+
+/** Looks for a contact address on the site that publishes the listing. */
+const ContactBody = z.object({ op: z.literal("contact"), listingUrl: z.string().url().max(500) });
+
+/** Text of the removal request, to review before sending. */
+const DraftSiteBody = z.object({ op: z.literal("draftSite"), site: z.string().min(1).max(80), listingUrl: z.string().url().max(500), fields: Fields });
+
+const SendSiteBody = z.object({
+  op: z.literal("sendSite"),
+  to: z.string().email().max(120),
+  site: z.string().min(1).max(80),
+  listingUrl: z.string().url().max(500),
+  fields: Fields,
+  subject: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(4000),
+});
+
 const Body = z.discriminatedUnion("op", [
   z.object({ op: z.literal("status") }),
   z.object({ op: z.literal("end") }),
   SendBody,
   ConfirmBody,
+  ContactBody,
+  DraftSiteBody,
+  SendSiteBody,
 ]);
 
 /**
@@ -58,8 +80,39 @@ export async function POST(request: Request) {
     return Response.json({ ok: true }, { headers: NO_STORE });
   }
 
+  if (b.op === "contact") {
+    if (!takeCheck("browser", subject.email)) return Response.json({ error: "That's a lot of lookups. Try again later." }, { status: 429, headers: NO_STORE });
+    const contacts = await findSiteContact(b.listingUrl, AbortSignal.timeout(20_000)).catch(() => []);
+    return Response.json({ contacts }, { headers: NO_STORE });
+  }
+  if (b.op === "draftSite") {
+    return Response.json(siteDraft({ name: subject.name, email: subject.email, site: b.site, listingUrl: b.listingUrl, fields: b.fields }), { headers: NO_STORE });
+  }
+
   const gmail = gmailSession(owner);
   if (!gmail) return Response.json({ error: "Connect Gmail for this cleanup first." }, { status: 401, headers: NO_STORE });
+
+  if (b.op === "sendSite") {
+    if (!takeCheck("browser", subject.email)) return Response.json({ error: "That's a lot of emails. Try again later." }, { status: 429, headers: NO_STORE });
+    // Only the site's own domain, or an address the site itself publishes, may receive the request.
+    if (!(await recipientAllowed(b.to, b.listingUrl, AbortSignal.timeout(20_000)).catch(() => false))) {
+      return Response.json({ error: "That address isn't on this site's own domain or pages. Use one the site lists." }, { status: 400, headers: NO_STORE });
+    }
+    if (!countSend(owner)) return Response.json({ error: "This cleanup has sent enough emails." }, { status: 429, headers: NO_STORE });
+    try {
+      await sendRaw(gmail.token, buildRawEmail(b.to, b.subject, b.body));
+      addLog(logOwner(subject.email), {
+        site: b.site,
+        taskId: `email:${b.site}`.slice(0, 80),
+        outcome: "sent",
+        note: `Sent a removal request to ${b.to}.`,
+        nextCheck: Date.now() + 14 * 24 * 60 * 60 * 1000,
+      });
+      return Response.json({ ok: true }, { headers: NO_STORE });
+    } catch {
+      return Response.json({ error: "Gmail couldn't send that email." }, { status: 502, headers: NO_STORE });
+    }
+  }
 
   if (b.op === "send") {
     if (!takeCheck("browser", subject.email)) return Response.json({ error: "That's a lot of emails. Try again later." }, { status: 429, headers: NO_STORE });

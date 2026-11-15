@@ -37,7 +37,7 @@ export function cleanupOwner(email: string): string {
   return createHash("sha256").update(`cleanup:${email.trim().toLowerCase()}`).digest("hex");
 }
 
-export type CleanupMode = "broker-form" | "broker-email" | "settings" | "github-api" | "prepare";
+export type CleanupMode = "broker-form" | "broker-email" | "site-email" | "settings" | "github-api" | "prepare";
 
 /** How the agent can help with this fix, or null when it can't. */
 export function cleanupForFix(fix: Fix): { taskId: string; mode: CleanupMode; site: string } | null {
@@ -63,6 +63,10 @@ export function cleanupForFix(fix: Fix): { taskId: string; mode: CleanupMode; si
     if (b) return { taskId: `broker:${b.id}`, mode: b.method === "email" ? "broker-email" : "broker-form", site: b.name };
     const p = profileForUrl(fix.link);
     if (p && siteUrl(fix.link, [p.domain])) return { taskId: `profile:${p.id}`, mode: "settings", site: p.name };
+  }
+  // Someone else's site with no form the agent knows: write to the site.
+  if (fix.kind === "takedown" && fix.contact) {
+    return { taskId: `email:${fix.contact.site}`.slice(0, 80), mode: "site-email", site: fix.contact.site };
   }
   return null;
 }

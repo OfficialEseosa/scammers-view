@@ -37,6 +37,29 @@ export function templateDraft(i: OptOutInput): OptOutDraft {
   };
 }
 
+/** Removal request to a site that is not a data broker (a news page, a club roster, a directory). */
+export function siteDraft(i: { name: string; email: string; site: string; listingUrl: string; fields: { label: string; value: string }[] }): OptOutDraft {
+  const items = i.fields.map((f) => `- ${f.label}: ${f.value}`).join("\n");
+  return {
+    subject: `Request to remove my personal information (${i.name})`,
+    body: [
+      "Hello,",
+      "",
+      `I am the person named on the page below on ${i.site}, and I am asking you to remove my personal details from it.`,
+      "",
+      `Page: ${i.listingUrl}`,
+      "Details to remove:",
+      items,
+      "",
+      "These details are being used to target me with scams. Please remove them, or the page, and confirm by reply once it is done. If you need to check that I am the person named, reply to this email and tell me what you need.",
+      "",
+      "Thank you,",
+      i.name,
+      i.email,
+    ].join("\n"),
+  };
+}
+
 export function mailtoHref(d: OptOutDraft, to = ""): string {
   return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
 }

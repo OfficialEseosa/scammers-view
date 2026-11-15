@@ -27,6 +27,8 @@ export interface Fix {
   effort: Effort;
   /** Present on broker fixes: enables the "draft the removal email" action. */
   optout?: { broker: string; listingUrl: string; findingIds: string[] };
+  /** Present on takedown fixes for someone else's site: enables the "email the site" action. */
+  contact?: { site: string; listingUrl: string; findingIds: string[] };
 }
 
 /** A fix before scoring. */

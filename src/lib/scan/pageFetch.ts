@@ -63,6 +63,8 @@ export interface PageData {
   metaOnly: boolean;
   /** Static fallbacks for JS-only sites: RSS/Atom feed link, and the origin (for sitemap.xml). */
   feedUrl?: string;
+  /** Addresses in the page's mailto: links (they are not part of the readable text). */
+  mailto?: string[];
 }
 
 const decode = (s: string) =>
@@ -175,6 +177,7 @@ export async function fetchPage(rawUrl: string, signal: AbortSignal): Promise<Pa
   }
   const feedHref = html.match(/<link[^>]+type=["']application\/(?:rss|atom)\+xml["'][^>]*>/i)?.[0]?.match(/href=["']([^"']+)["']/i)?.[1];
   const isXml = /xml/i.test(type) && !/xhtml/i.test(type);
+  const mailto = [...new Set([...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map((m) => decode(m[1]).trim()))].slice(0, 20);
 
   let text = "";
   const links: { url: string; text: string }[] = [];
@@ -222,6 +225,6 @@ export async function fetchPage(rawUrl: string, signal: AbortSignal): Promise<Pa
       .slice(0, MAX_TEXT);
   }
   if (structured.length) text = `${text}\n\nSTRUCTURED DATA ON PAGE:\n${[...new Set(structured)].join("\n")}`.trim().slice(0, MAX_TEXT);
-  if (!text && !description && images.length === 0) return null;
-  return { url: current, title, description, text, images: images.slice(0, 25), links, metaOnly, feedUrl: feedHref ? abs(feedHref) : undefined };
+  if (!text && !description && images.length === 0 && mailto.length === 0) return null;
+  return { url: current, title, description, text, images: images.slice(0, 25), links, metaOnly, feedUrl: feedHref ? abs(feedHref) : undefined, mailto: mailto.length ? mailto : undefined };
 }
