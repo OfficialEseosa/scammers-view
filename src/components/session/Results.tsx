@@ -13,15 +13,14 @@ import { ExposureRadar, RiskHistogram, SourceBars } from "@/design/charts";
 import { EASE_OUT } from "@/design/motion";
 import { DotField } from "@/design/backgrounds";
 import { cn } from "@/design/utils";
-import { planFixes } from "@/lib/fixes/plan";
-import { computeExposure } from "@/lib/fixes/score";
 import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
 import { FindingFeed } from "@/components/scan/FindingFeed";
 import { QuickActions } from "@/components/session/QuickActions";
 import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
 import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
-import { AttackMapSlot, CallSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
+import { ChainCases, OpenCases, useRealCases } from "@/features/cases";
+import { AttackMapSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
   function Loading() {
@@ -30,7 +29,6 @@ const load = (label: string) =>
 const BreachCheck = dynamic(() => import("@/features/breach").then((m) => m.BreachCheck), { ssr: false, loading: load("Loading breach check") });
 const CampusScams = dynamic(() => import("@/features/campus").then((m) => m.CampusScams), { ssr: false, loading: load("Loading campus scams") });
 const AddToRoom = dynamic(() => import("@/features/campus").then((m) => m.AddToRoom), { ssr: false });
-const FamilyShare = dynamic(() => import("@/features/family").then((m) => m.FamilyShare), { ssr: false, loading: load("Loading family card") });
 const ChangeWatch = dynamic(() => import("@/features/watch").then((m) => m.ChangeWatch), { ssr: false });
 
 /**
@@ -60,6 +58,9 @@ export function Results() {
     return [...scan.findings, ...extra.filter((f) => !ids.has(f.id) && !notMeIds.has(f.id))];
   }, [scan.findings, breachFindings, voiceFindings, photoFindings, videoFindings, notMeIds]);
 
+  // Real, published scam reports that fit this scan (Typesense, or the built-in matcher).
+  const realCases = useRealCases(findings, scan.chains);
+
   const go = (t: ResultsTab) => {
     setTab(t);
     window.scrollTo({ top: 0 });
@@ -88,6 +89,7 @@ export function Results() {
               videos={findings.filter((f) => f.category === "video").length}
             />
             <FixListSlot findings={findings} chains={scan.chains} score={scan.score} masked={masked} onRemovedChange={s.setRemovedFindingIds} />
+            <OpenCases cases={realCases} findings={findings} removedFindingIds={s.removedFindingIds} className="mx-4 mt-16 sm:mx-0" />
             <Overview findings={findings} />
             <SeeWhy onClick={seeWhy} className={unlocked ? "xl:hidden" : undefined} />
           </div>
@@ -119,6 +121,7 @@ export function Results() {
           <div className="relative h-[calc(100dvh-10rem)] min-h-[460px] overflow-hidden rounded-card border border-edge">
             <AttackMapSlot findings={findings} chains={scan.chains} score={s.liveScore} subjectName={name} masked={masked} removedFindingIds={s.removedFindingIds} />
           </div>
+          <ChainCases cases={realCases} findings={findings} chains={scan.chains} removedFindingIds={s.removedFindingIds} className="mx-1 mt-12 sm:mx-0" />
         </section>
       )}
 
@@ -137,19 +140,13 @@ export function Results() {
         </div>
       </Panel>
 
-      <Panel id="call" active={tab} keep={visited}>
-        <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
-          <CallSlot findings={findings} chains={scan.chains} score={scan.score} subjectName={subjectName} masked={masked} initialScenario={s.callScenario} />
-        </div>
-      </Panel>
-
       <Panel id="check" active={tab} keep={visited}>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-8 sm:px-8">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-edge bg-surface p-4">
             <GmailButton />
             <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
           </div>
-          <CheckSlot onPractise={s.practiseCall} />
+          <CheckSlot />
         </div>
       </Panel>
 
@@ -194,13 +191,6 @@ export function Results() {
           <AddToRoom score={s.liveScore?.score ?? scan.score?.score ?? 0} findings={findings} />
         </div>
       </Panel>
-
-      <Panel id="family" active={tab} keep={visited}>
-        <div className="mx-auto w-full max-w-4xl px-4 pt-8 sm:px-8">
-          <h1 className="sv-display mb-6 text-[clamp(2rem,4vw,2.75rem)] leading-[1]">Family</h1>
-          <FamilyCard findings={findings} />
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -222,60 +212,6 @@ function RoomJoin({ findings }: { findings: Finding[] }) {
     <div className="mx-4 mt-6 sm:mx-0">
       <AddToRoom score={liveScore?.score ?? scan.score?.score ?? 0} findings={findings} />
     </div>
-  );
-}
-
-/** The family card needs the current score, the top fix and how many ways in are cut. */
-function useFixSummary(findings: Finding[]) {
-  const { scan, removedFindingIds } = useSession();
-  return useMemo(() => {
-    const anchor = scan.score?.score;
-    const fixes = planFixes(findings, scan.chains, anchor);
-    const r = computeExposure(findings, scan.chains, removedFindingIds, anchor);
-    return {
-      score: r.score,
-      topFixTitle: fixes[0]?.title ?? "Lock down your public profiles",
-      chainsBroken: r.brokenChainIds.length,
-      chainsTotal: scan.chains.length,
-    };
-  }, [findings, scan.chains, scan.score, removedFindingIds]);
-}
-
-function FamilyCard({ findings }: { findings: Finding[] }) {
-  const sum = useFixSummary(findings);
-  return <FamilyShare {...sum} />;
-}
-
-/** After at least one fix is ticked, offer the family card inline. */
-function FamilyNudge({ findings, onOpen }: { findings: Finding[]; onOpen: () => void }) {
-  const { removedFindingIds } = useSession();
-  const sum = useFixSummary(findings);
-  const show = removedFindingIds.length > 0;
-  return (
-    <AnimatePresence initial={false}>
-      {show && (
-        <motion.div
-          className="mx-4 mt-10 sm:mx-0"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3, ease: EASE_OUT }}
-        >
-          <Card className="sv-icon-host flex flex-wrap items-center gap-4">
-            <Icon3D name="person" size={56} />
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-xl font-semibold">Send your family the card</p>
-              <p className="text-muted">
-                <span className="sv-num text-fg">{sum.score}</span> exposure · <span className="sv-num text-fg">{sum.chainsBroken}</span>/{sum.chainsTotal} cut
-              </p>
-            </div>
-            <button type="button" onClick={onOpen} className="sv-press min-h-12 rounded-control border border-edge-strong px-5 font-semibold hover:border-fg">
-              Make the card
-            </button>
-          </Card>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 

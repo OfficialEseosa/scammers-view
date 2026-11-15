@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { CallScenarioId } from "@/lib/call/schema";
 import type { Reported } from "@/lib/reputation";
 import type { FixHit, Span } from "@/lib/search";
 import { ReportedBox } from "./ReportedBox";
@@ -12,10 +11,6 @@ import { ErrorState } from "@/design/states";
 import { cn } from "@/design/utils";
 
 export type ScamCheckProps = {
-  /** Called with the closest practice call when the user wants to rehearse a match live. */
-  onPractise?: (scenario: CallScenarioId) => void;
-  /** Label for the practice button (default "Practise this one live"). */
-  practiseLabel?: string;
   /** Message to check straight away, e.g. one shared from another app. */
   initialText?: string;
 };
@@ -29,7 +24,6 @@ type Match = {
   redFlags: string[];
   action: string;
   report: { title: string; url: string }[];
-  practice?: CallScenarioId;
 };
 
 type CheckResult = { engine: "typesense" | "local"; level: "high" | "some" | "low"; spans: Span[]; matches: Match[]; reported?: Reported };
@@ -60,7 +54,7 @@ async function requestCheck(body: string): Promise<State> {
   }
 }
 
-export function ScamCheck({ onPractise, practiseLabel, initialText }: ScamCheckProps) {
+export function ScamCheck({ initialText }: ScamCheckProps) {
   const initial = initialText?.trim().slice(0, 4000) ?? "";
   const [text, setText] = useState(initial);
   const [state, setState] = useState<State>(initial ? { status: "loading" } : { status: "idle" });
@@ -119,7 +113,7 @@ export function ScamCheck({ onPractise, practiseLabel, initialText }: ScamCheckP
       </form>
 
       {state.status === "error" && <ErrorState title={state.message} action={<Button variant="secondary" onClick={() => void check()}>Try again</Button>} />}
-      {state.status === "ready" && <CheckReport text={state.text} data={state.data} onPractise={onPractise} practiseLabel={practiseLabel} />}
+      {state.status === "ready" && <CheckReport text={state.text} data={state.data} />}
 
       <FixSearch />
     </section>
@@ -129,13 +123,9 @@ export function ScamCheck({ onPractise, practiseLabel, initialText }: ScamCheckP
 function CheckReport({
   text,
   data,
-  onPractise,
-  practiseLabel = "Practise this one live",
 }: {
   text: string;
   data: CheckResult;
-  onPractise?: (s: CallScenarioId) => void;
-  practiseLabel?: string;
 }) {
   const level = LEVEL[data.level];
   return (
@@ -182,11 +172,6 @@ function CheckReport({
                 </a>
               ))}
             </div>
-            {m.practice && onPractise && (
-              <Button variant="secondary" className="w-fit" onClick={() => onPractise(m.practice!)}>
-                {practiseLabel}
-              </Button>
-            )}
           </Card>
         ))}
         <p className="text-sm text-subtle">Matched with {data.engine === "typesense" ? "Typesense" : "the built-in matcher"}.</p>

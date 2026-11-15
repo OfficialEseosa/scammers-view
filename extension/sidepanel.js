@@ -89,7 +89,7 @@ async function render(last) {
     el(
       "a",
       { class: "button secondary", href: reportUrl(appUrl, last.text), target: "_blank", rel: "noopener" },
-      best?.practice ? "Full report and practice call" : "Open the full report",
+      "Open the full report",
     ),
   );
 }

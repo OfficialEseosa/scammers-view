@@ -1,5 +1,8 @@
 import { LlmNotConfiguredError, LlmRefusalError, MODELS, generateJson, isLlmConfigured } from "@/lib/llm/gemini";
 import type { Finding, ScanSubject } from "@/lib/types";
+import { exposedCategories } from "@/lib/cases/match";
+import { searchCases } from "@/lib/cases/search";
+import type { CaseHit } from "@/lib/cases/types";
 import { ModelDraft, SYSTEM_PROMPT, buildUserPrompt, factsForPrompt, recipientFirstName } from "./prompt";
 import { finalizeDraft } from "./sanitize";
 import {
@@ -18,6 +21,26 @@ const TIMEOUT_MS = 45_000;
 /** Practice messages: fast model, low thinking (bench 2026-11-14: tells still exact, ~2x faster than argon). */
 const PRACTICE_MODEL = () => process.env.GEMINI_MODEL_PRACTICE?.trim() || MODELS.fast;
 
+/** Kinds of published case that are the same scam as each scenario; anything else is not used. */
+const CASE_TYPES: Record<PracticeScenario, string[]> = {
+  campus_job_offer: ["job-offer", "money-mule"],
+  financial_aid_refund: ["student-loan", "financial-aid"],
+  rental_deposit: ["rental"],
+  professor_message: ["boss-gift-cards", "business-email-compromise", "known-contact-impersonation"],
+  account_security_alert: ["account-takeover", "phishing", "bank-impersonation", "tech-support", "sim-swap"],
+};
+
+/** The closest published scam report of the scenario's own kind that this person's exposure allows. */
+export async function realCaseFor(findings: Finding[], scenario: PracticeScenario): Promise<CaseHit | undefined> {
+  const sc = SCENARIOS.find((s) => s.id === scenario)!;
+  try {
+    const { byQuery } = await searchCases({ exposed: exposedCategories(findings), queries: [{ id: "s", text: `${sc.label}. ${sc.brief}`.slice(0, 600) }], limit: 12 });
+    return byQuery.s?.find((h) => CASE_TYPES[scenario].includes(h.scam_type));
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Generates a practice message addressed to the signed-in subject with Gemini.
  * A block/refusal, invalid output, or a message whose tells don't match its body
@@ -35,7 +58,8 @@ export async function generatePractice(args: {
     attempts.push({ provider: "gemini", outcome: "unavailable", detail: "GEMINI_API_KEY not set" });
     return { result: buildTellsOnly(args, attempts), attempts };
   }
-  const userPrompt = buildUserPrompt(args);
+  const realCase = await realCaseFor(args.findings, args.scenario);
+  const userPrompt = buildUserPrompt({ ...args, realCase });
   const addressedTo = recipientFirstName(args.subject);
 
   // One extra attempt only when the model's tells didn't match its own body, within one deadline.
@@ -78,7 +102,8 @@ export async function generatePractice(args: {
     });
     if (msg) {
       attempts.push({ provider: "gemini", outcome: "ok", detail: `${msg.tells.length}/${draft.tells.length} tells kept` });
-      return { result: msg, attempts };
+      const basedOn = realCase && { title: realCase.title, source: realCase.source, year: realCase.year, url: realCase.url };
+      return { result: basedOn ? { ...msg, basedOn } : msg, attempts };
     }
     attempts.push({ provider: "gemini", outcome: "invalid", detail: "too few tells matched the body" });
   }

@@ -13,7 +13,6 @@ import { clearVoiceData } from "@/lib/voice-exposure/store";
 import { disposeVoiceEngine } from "@/lib/voice-exposure/client";
 import { computeExposure } from "@/lib/fixes/score";
 import { leave } from "@/app/actions";
-import type { CallScenarioId } from "@/lib/call/schema";
 
 /**
  * One store for the whole session: scan results, fixes the user ticked, face-match status
@@ -24,7 +23,7 @@ import type { CallScenarioId } from "@/lib/call/schema";
 
 export type Stage = "face" | "live" | "results" | "ended";
 export type FaceStatus = "pending" | "verified" | "skipped";
-export type ResultsTab = "fixes" | "map" | "practice" | "call" | "check" | "quiz" | "photos" | "places" | "breach" | "campus" | "family";
+export type ResultsTab = "fixes" | "map" | "practice" | "check" | "quiz" | "photos" | "places" | "breach" | "campus";
 
 /** `more`: listed under the "More" menu instead of the main tab row. */
 export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated: boolean; more?: boolean }[] = [
@@ -74,15 +73,6 @@ export interface Session {
   endSession: () => void;
   /** Set when the saved copy on the account could not be deleted; nothing else was cleared. */
   endError: string | null;
-  /** Scenario picked from the scam checker, waiting for the call tab. */
-  callScenario: CallScenarioId | null;
-  /** Opens the practice call tab with this scenario (unlocking the gated tabs). */
-  practiseCall: (s: CallScenarioId) => void;
-}
-
-/** Practice-call tickets live in server memory; ask for them to be dropped. */
-function dropCallTickets() {
-  void fetch("/api/call", { method: "DELETE", keepalive: true }).catch(() => {});
 }
 
 function toScanState(scan: NonNullable<SavedSession["scan"]>): ScanState {
@@ -160,7 +150,6 @@ function SessionReady({
   const [removed, setRemoved] = useState<string[]>(() => (boot?.removedFindingIds.length ? boot.removedFindingIds : EMPTY));
   const [tab, setTab] = useState<ResultsTab>(() => (boot && TAB_IDS.has(boot.tab as ResultsTab) ? (boot.tab as ResultsTab) : "fixes"));
   const [unlocked, setUnlocked] = useState(() => Boolean(boot?.unlocked));
-  const [callScenario, setCallScenario] = useState<CallScenarioId | null>(null);
   const [masked, setMasked] = usePresentationMode();
   const [ending, startEnding] = useTransition();
 
@@ -208,7 +197,6 @@ function SessionReady({
       clearFaceData();
       clearVoiceData();
       disposeVoiceEngine();
-      dropCallTickets();
     };
     window.addEventListener("pagehide", wipeBio);
     return () => {
@@ -320,12 +308,10 @@ function SessionReady({
       clearFaceData();
       clearVoiceData();
       disposeVoiceEngine();
-      dropCallTickets();
       setRemoved(EMPTY);
       setNotMe(NO_FINDINGS);
       setNotMeUndo(null);
       setUnlocked(false);
-      setCallScenario(null);
       setTab("fixes");
       setFace("pending");
       setStage("ended"); // closes the stream and wipes scan state
@@ -362,15 +348,8 @@ function SessionReady({
       ending,
       endSession,
       endError,
-      callScenario,
-      practiseCall: (sc: CallScenarioId) => {
-        setCallScenario(sc);
-        setUnlocked(true);
-        setTab("call");
-        window.scrollTo({ top: 0 });
-      },
     }),
-    [mock, subjectName, subjectEmail, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, endError, callScenario],
+    [mock, subjectName, subjectEmail, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, endError],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
