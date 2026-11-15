@@ -4,7 +4,8 @@ import { test } from "node:test";
 import type { PageData } from "../scan/pageFetch";
 import type { Fix } from "../fixes/types";
 import { siteDraft } from "../fixes/optout";
-import { contactPages, emailsOnPage, findSiteContact, recipientAllowed, sameSite } from "./contact";
+import { decodeCfEmail } from "../scan/pageFetch";
+import { baseDomain, contactPages, emailsOnPage, findSiteContact, plainAddresses, recipientAllowed, sameSite } from "./contact";
 import { cleanupForFix } from "./tasks";
 
 const page = (url: string, text: string, extra: Partial<PageData> = {}): PageData => ({ url, title: "", description: "", text, images: [], links: [], metaOnly: false, ...extra });
@@ -88,4 +89,43 @@ test("a takedown on someone else's site offers the email, and the draft names th
   const d = siteDraft({ name: "Alex Rivera", email: "alex@example.com", site: "campus-news.example", listingUrl: fix.link!, fields: [{ label: "Award", value: "Dean's list" }] });
   assert.ok(d.subject.includes("Alex Rivera"));
   assert.ok(d.body.includes("https://campus-news.example/story/1") && d.body.includes("- Award: Dean's list") && d.body.endsWith("alex@example.com"));
+});
+
+test("disguised addresses are read: [at]/(dot) spellings and Cloudflare-protected ones", () => {
+  assert.equal(plainAddresses("write to editor [at] campus-news [dot] example today"), "write to editor@campus-news.example today");
+  assert.equal(plainAddresses("privacy(at)campus-news(dot)example"), "privacy@campus-news.example");
+  const found = emailsOnPage("Newsroom: editor [at] campus-news [dot] example", "campus-news.example", "https://campus-news.example/contact");
+  assert.deepEqual(found.map((c) => c.address), ["editor@campus-news.example"]);
+  // key 0x2a, then each character of "a@b.co" XOR 0x2a
+  const hex = "2a" + [..."a@b.co"].map((ch) => (ch.charCodeAt(0) ^ 0x2a).toString(16).padStart(2, "0")).join("");
+  assert.equal(decodeCfEmail(hex), "a@b.co");
+  assert.equal(decodeCfEmail("zz"), "");
+  assert.equal(decodeCfEmail("2a4b"), "");
+});
+
+test("contact pages on the site's other subdomains are followed, lookalike domains are not", () => {
+  assert.equal(baseDomain("news.school.example"), "school.example");
+  assert.equal(baseDomain("www.paper.co.uk"), "paper.co.uk");
+  const pages = contactPages("https://news.school.example/story/1", [
+    { url: "https://www.school.example/contact", text: "Contact" },
+    { url: "https://school.example.evil.example/contact", text: "Contact" },
+    { url: "http://www.school.example/privacy", text: "Privacy" },
+  ]);
+  assert.equal(pages[0], "https://www.school.example/contact");
+  assert.ok(!pages.some((u) => u.includes("evil.example")) && !pages.some((u) => u.startsWith("http://")));
+  assert.ok(pages.includes("https://news.school.example/.well-known/security.txt"));
+});
+
+test("findSiteContact: footer links beyond the first 80 and security.txt are used", async () => {
+  const listing = "https://campus-news.example/story/1";
+  const site: Record<string, PageData> = {
+    [listing]: page(listing, "Alex Rivera wins award", {
+      links: Array.from({ length: 80 }, (_, i) => ({ url: `https://campus-news.example/tag/${i}`, text: `Tag ${i}` })),
+      contactLinks: [{ url: "https://campus-news.example/masthead", text: "Masthead" }],
+    }),
+    "https://campus-news.example/masthead": page("https://campus-news.example/masthead", "Editor: editor@campus-news.example"),
+    "https://campus-news.example/.well-known/security.txt": page("https://campus-news.example/.well-known/security.txt", "Contact: mailto:security@campus-news.example"),
+  };
+  const found = await findSiteContact(listing, AbortSignal.timeout(1000), async (url) => site[url] ?? null);
+  assert.deepEqual(found.map((c) => c.address).sort(), ["editor@campus-news.example", "security@campus-news.example"]);
 });

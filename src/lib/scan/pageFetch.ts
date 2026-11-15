@@ -65,6 +65,19 @@ export interface PageData {
   feedUrl?: string;
   /** Addresses in the page's mailto: links (they are not part of the readable text). */
   mailto?: string[];
+  /** Privacy, contact and about links from anywhere on the page, footer included (`links` stops at 80). */
+  contactLinks?: { url: string; text: string }[];
+}
+
+const CONTACT_LINK = /privacy|contact|about|legal|terms|imprint|impressum|dmca|removal|opt.?out|masthead|staff|editor/i;
+
+/** Cloudflare hides addresses as hex: the first byte is the key, the rest is the address XOR that key. */
+export function decodeCfEmail(hex: string): string {
+  if (!/^(?:[0-9a-f]{2}){2,}$/i.test(hex)) return "";
+  const key = parseInt(hex.slice(0, 2), 16);
+  let out = "";
+  for (let i = 2; i < hex.length; i += 2) out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out) ? out : "";
 }
 
 const decode = (s: string) =>
@@ -177,7 +190,13 @@ export async function fetchPage(rawUrl: string, signal: AbortSignal): Promise<Pa
   }
   const feedHref = html.match(/<link[^>]+type=["']application\/(?:rss|atom)\+xml["'][^>]*>/i)?.[0]?.match(/href=["']([^"']+)["']/i)?.[1];
   const isXml = /xml/i.test(type) && !/xhtml/i.test(type);
-  const mailto = [...new Set([...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map((m) => decode(m[1]).trim()))].slice(0, 20);
+  const mailto = [
+    ...new Set([
+      ...[...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map((m) => decode(m[1]).trim()),
+      ...[...html.matchAll(/(?:data-cfemail=["']|email-protection#)([0-9a-f]{6,})/gi)].map((m) => decodeCfEmail(m[1])).filter(Boolean),
+    ]),
+  ].slice(0, 20);
+  const contactLinks: { url: string; text: string }[] = [];
 
   let text = "";
   const links: { url: string; text: string }[] = [];
@@ -211,8 +230,10 @@ export async function fetchPage(rawUrl: string, signal: AbortSignal): Promise<Pa
       const u = abs(m[1]);
       if (!/^https?:/.test(u) || seenLink.has(u)) continue;
       seenLink.add(u);
-      links.push({ url: u, text: decode(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 80) });
-      if (links.length >= 80) break;
+      const label = decode(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 80);
+      if (links.length < 80) links.push({ url: u, text: label });
+      if (contactLinks.length < 12 && (CONTACT_LINK.test(label) || CONTACT_LINK.test(u.replace(/^https?:\/\/[^/]+/, "")))) contactLinks.push({ url: u, text: label });
+      if (links.length >= 80 && contactLinks.length >= 12) break;
     }
     text = decode(
       body
@@ -226,5 +247,5 @@ export async function fetchPage(rawUrl: string, signal: AbortSignal): Promise<Pa
   }
   if (structured.length) text = `${text}\n\nSTRUCTURED DATA ON PAGE:\n${[...new Set(structured)].join("\n")}`.trim().slice(0, MAX_TEXT);
   if (!text && !description && images.length === 0 && mailto.length === 0) return null;
-  return { url: current, title, description, text, images: images.slice(0, 25), links, metaOnly, feedUrl: feedHref ? abs(feedHref) : undefined, mailto: mailto.length ? mailto : undefined };
+  return { url: current, title, description, text, images: images.slice(0, 25), links, metaOnly, feedUrl: feedHref ? abs(feedHref) : undefined, mailto: mailto.length ? mailto : undefined, contactLinks: contactLinks.length ? contactLinks : undefined };
 }
