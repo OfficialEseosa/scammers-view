@@ -1,5 +1,4 @@
-# Coder template: one workspace = the Next app on :3000, a Typesense sidecar (indexed on start),
-# and, when the LiveKit and Deepgram keys are present, the live practice-call worker from agent/.
+# Coder template: one workspace = the Next app on :3000 and a Typesense sidecar (indexed on start).
 # Shared API keys are template variables (set once by the template admin, marked sensitive);
 # developers only pick a repo and branch.
 
@@ -50,27 +49,6 @@ variable "apify_token" {
   default   = ""
 }
 
-# Live practice calls. Leave empty and the Call tab offers the turn-by-turn browser call only.
-variable "livekit_url" {
-  type    = string
-  default = ""
-}
-variable "livekit_api_key" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-variable "livekit_api_secret" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-variable "deepgram_api_key" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
 # ---- Workspace parameters (per developer) -----------------------------------------------
 
 data "coder_parameter" "repo" {
@@ -101,15 +79,9 @@ resource "random_password" "typesense_key" {
   special = false
 }
 
-resource "random_password" "agent_secret" {
-  length  = 48
-  special = false
-}
-
 locals {
   name        = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   typesense   = "${local.name}-typesense"
-  live_on     = var.livekit_url != "" && var.livekit_api_key != "" && var.livekit_api_secret != "" && var.deepgram_api_key != ""
 }
 
 # ---- Agent ---------------------------------------------------------------------------------
@@ -130,14 +102,6 @@ resource "coder_agent" "main" {
 
     TYPESENSE_HOST    = "http://${local.typesense}:8108"
     TYPESENSE_API_KEY = random_password.typesense_key.result
-
-    LIVEKIT_URL        = var.livekit_url
-    LIVEKIT_API_KEY    = var.livekit_api_key
-    LIVEKIT_API_SECRET = var.livekit_api_secret
-    DEEPGRAM_API_KEY   = var.deepgram_api_key
-    CALL_AGENT_SECRET  = random_password.agent_secret.result
-    MAX_LIVE_CALLS     = "3"
-    APP_URL            = "http://localhost:3000"
   }
 
   startup_script = <<-EOT
@@ -157,10 +121,6 @@ resource "coder_agent" "main" {
     npm run index:typesense || echo "Typesense indexing failed; /api/check will use local search."
 
     nohup npm run dev -- --hostname 0.0.0.0 --port 3000 > /tmp/next.log 2>&1 &
-
-    %{if local.live_on}
-    (cd agent && npm ci --no-audit --no-fund && nohup npm run dev > /tmp/agent.log 2>&1 &)
-    %{endif}
   EOT
 
   metadata {

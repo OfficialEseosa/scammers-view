@@ -2,7 +2,7 @@
 
 Check a suspicious message from any page, without opening the app:
 
-- **Right-click** selected text or a link and choose "Check with Scammer's View". The result opens in the side panel, with a link to the full report (and a practice call) in the app.
+- **Right-click** selected text or a link and choose "Check with Scammer's View". The result opens in the side panel, with a link to the full report in the app.
 - **Side panel**: paste any message and check it.
 - **Gmail banner (opt-in)**: a small warning above an open email that shows scam warning signs. It stays off, with no access to Gmail at all, until you turn it on in the popup.
 

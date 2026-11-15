@@ -1,5 +1,4 @@
 import { PATTERN_BY_ID } from "@/lib/campus/patterns";
-import { PRACTICE_FOR_PATTERN, type CallScenarioId } from "@/lib/call/schema";
 import { checkReputation, isReported, type Reported } from "@/lib/reputation";
 import { CUES, findSpans, searchPatterns, type Span } from "@/lib/search";
 
@@ -14,7 +13,6 @@ export interface CheckMatch {
   redFlags: string[];
   action: string;
   report: { title: string; url: string }[];
-  practice?: CallScenarioId;
 }
 
 export interface CheckResult {
@@ -44,7 +42,6 @@ export async function analyzeMessage(text: string, limit = 3): Promise<CheckResu
       redFlags: p.redFlags,
       action: p.action,
       report: p.report,
-      practice: PRACTICE_FOR_PATTERN[p.id],
     };
   });
   const level: CheckLevel = isReported(reported) || cueIds.size >= 3 ? "high" : cueIds.size >= 1 ? "some" : "low";

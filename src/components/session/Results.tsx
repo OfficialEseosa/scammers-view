@@ -21,7 +21,7 @@ import { FindingFeed } from "@/components/scan/FindingFeed";
 import { QuickActions } from "@/components/session/QuickActions";
 import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
 import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
-import { AttackMapSlot, CallSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
+import { AttackMapSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
   function Loading() {
@@ -137,19 +137,13 @@ export function Results() {
         </div>
       </Panel>
 
-      <Panel id="call" active={tab} keep={visited}>
-        <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-8">
-          <CallSlot findings={findings} chains={scan.chains} score={scan.score} subjectName={subjectName} masked={masked} initialScenario={s.callScenario} />
-        </div>
-      </Panel>
-
       <Panel id="check" active={tab} keep={visited}>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-8 sm:px-8">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-edge bg-surface p-4">
             <GmailButton />
             <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
           </div>
-          <CheckSlot onPractise={s.practiseCall} />
+          <CheckSlot />
         </div>
       </Panel>
 

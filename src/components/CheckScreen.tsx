@@ -31,8 +31,6 @@ export function CheckScreen({ signedIn, gmail }: { signedIn: boolean; gmail: boo
     if (window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search);
   }, []);
 
-  const goPractise = () => window.location.assign(signedIn ? "/scan" : "/");
-
   return (
     <div className="relative isolate flex flex-1 flex-col">
       <Grain />
@@ -52,12 +50,7 @@ export function CheckScreen({ signedIn, gmail }: { signedIn: boolean; gmail: boo
             <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
           </div>
         )}
-        <ScamCheck
-          key={fromShare?.text ?? "blank"}
-          initialText={fromShare?.text}
-          onPractise={goPractise}
-          practiseLabel={signedIn ? "Practise this one live" : "Sign in to practise this one"}
-        />
+        <ScamCheck key={fromShare?.text ?? "blank"} initialText={fromShare?.text} />
         <p className="border-t border-edge pt-8 text-muted">
           Scammers use what they can find about you.{" "}
           <Link href={signedIn ? "/scan" : "/"} className="text-fg underline underline-offset-4">
