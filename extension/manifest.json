@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Scammer's View: Is this a scam?",
   "short_name": "Scammer's View",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Check any text or link for scam warning signs, and let the cleanup agent remove your listings and lock down your accounts while you watch.",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "action": { "default_title": "Scammer's View", "default_popup": "popup.html" },
@@ -26,7 +26,7 @@
     "https://*.wayup.com/*",
     "https://*.devpost.com/*"
   ],
-  "optional_host_permissions": ["https://*/*", "https://mail.google.com/*"],
+  "optional_host_permissions": ["https://*/*"],
   "content_scripts": [
     { "matches": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"], "js": ["bridge.js"], "run_at": "document_start" }
   ],

@@ -1,12 +1,9 @@
 import { getSettings } from "./shared.js";
 
-const GMAIL_ORIGIN = "https://mail.google.com/*";
-const gmail = document.getElementById("gmail");
 const appUrl = document.getElementById("app-url");
 const status = document.getElementById("status");
 
 const settings = await getSettings();
-gmail.checked = settings.gmail && (await chrome.permissions.contains({ origins: [GMAIL_ORIGIN] }));
 appUrl.value = settings.appUrl;
 
 const { id: windowId } = await chrome.windows.getCurrent();
@@ -42,19 +39,6 @@ function renderCleanup(live) {
 chrome.storage.session.get("cleanupLive").then(({ cleanupLive }) => renderCleanup(cleanupLive));
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "session" && changes.cleanupLive) renderCleanup(changes.cleanupLive.newValue);
-});
-
-gmail.addEventListener("change", async () => {
-  if (gmail.checked) {
-    const ok = await chrome.permissions.request({ origins: [GMAIL_ORIGIN] });
-    gmail.checked = ok;
-    await chrome.storage.sync.set({ gmail: ok });
-    status.textContent = ok ? "Gmail warnings are on. Reload Gmail to start." : "Gmail access wasn't granted.";
-  } else {
-    await chrome.storage.sync.set({ gmail: false });
-    await chrome.permissions.remove({ origins: [GMAIL_ORIGIN] });
-    status.textContent = "Gmail warnings are off.";
-  }
 });
 
 document.getElementById("app").addEventListener("submit", async (e) => {

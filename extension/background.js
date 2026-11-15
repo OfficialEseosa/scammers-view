@@ -23,17 +23,15 @@ async function openCleanupPanel(tabId, windowId) {
   }
 }
 
-const GMAIL_SCRIPT = "gmail";
-const GMAIL_ORIGIN = "https://mail.google.com/*";
-
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: "check-selection", title: "Check with Scammer's View", contexts: ["selection"] });
     chrome.contextMenus.create({ id: "check-link", title: "Check this link with Scammer's View", contexts: ["link"] });
   });
-  void syncGmail();
+  // The Gmail banner was removed: drop its script and access if an earlier version turned them on.
+  void chrome.scripting.unregisterContentScripts({ ids: ["gmail"] }).catch(() => {});
+  void chrome.permissions.remove({ origins: ["https://mail.google.com/*"] }).catch(() => {});
 });
-chrome.runtime.onStartup.addListener(() => void syncGmail());
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   const text = info.menuItemId === "check-link" ? [info.selectionText, info.linkUrl].filter(Boolean).join("\n") : info.selectionText ?? "";
@@ -82,21 +80,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) }));
     return true;
   }
-  if (msg?.type === "check") {
-    void checkAndShow(String(msg.text ?? "")).then(reply);
-    return true;
-  }
-  if (msg?.type === "open-panel" && sender.tab?.id !== undefined) {
-    void chrome.sidePanel.open({ tabId: sender.tab.id });
-  }
   if (msg?.type === "check-in-panel") {
     void checkAndShow(String(msg.text ?? ""));
   }
   return false;
-});
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && "gmail" in changes) void syncGmail();
 });
 
 /* ------------------------- cleanup agent: hands in your Chrome ------------------------- */
@@ -416,17 +403,3 @@ chrome.notifications.onClicked.addListener(async (id) => {
   const { appUrl } = await getSettings();
   await chrome.tabs.create({ url: `${appUrl}/scan` });
 });
-
-/** The Gmail banner runs only after the student turns it on and grants access to mail.google.com. */
-async function syncGmail() {
-  const { gmail } = await getSettings();
-  const granted = await chrome.permissions.contains({ origins: [GMAIL_ORIGIN] });
-  const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: [GMAIL_SCRIPT] })).length > 0;
-  if (gmail && granted && !registered) {
-    await chrome.scripting.registerContentScripts([
-      { id: GMAIL_SCRIPT, matches: [GMAIL_ORIGIN], js: ["gmail.js"], css: ["gmail.css"], runAt: "document_idle" },
-    ]);
-  } else if ((!gmail || !granted) && registered) {
-    await chrome.scripting.unregisterContentScripts({ ids: [GMAIL_SCRIPT] });
-  }
-}
