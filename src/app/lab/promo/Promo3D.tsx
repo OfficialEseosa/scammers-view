@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { LogoMark } from "@/design/brand/Logo";
 import "./promo.css";
 
 /*
- * Scenes 7-10 of the demo video. Everything on screen is a pure function of one time value:
+ * Scenes 7-11 of the demo video. Everything on screen is a pure function of one time value:
  * window.__renderAt(t) sets every position, camera and opacity for second t and draws one frame,
  * so the recorder can step through the clip frame by frame.
  */
@@ -23,7 +24,7 @@ const H = 1080;
 const RED = "#ff5a4f";
 const GREEN = "#3ddc97";
 const FOV = 42;
-export const DURATIONS: Record<number, number> = { 7: 11.5, 8: 7.5, 9: 8, 10: 10 };
+export const DURATIONS: Record<number, number> = { 7: 11.5, 8: 7.5, 9: 8, 10: 10, 11: 7 };
 
 /* ---------- timing helpers ---------- */
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -206,7 +207,7 @@ function createWeb(canvas: HTMLCanvasElement, overlay: HTMLElement, shiftX = 0) 
     const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, color: redC, transparent: true, opacity: 0, depthWrite: false }));
     ring.position.copy(pos);
     scene.add(ring);
-    return { name, pos, mesh, wire, halo: h, ring, pop: 0, pulse: 0, ringP: 0, spin: 0 };
+    return { name, pos, mesh, wire, halo: h, ring, pop: 0, pulse: 0, ringP: 0, spin: 0, calm: 0 };
   });
 
   // Red arcs, each built as two halves so it can be drawn in and later broken in the middle.
@@ -270,6 +271,7 @@ function createWeb(canvas: HTMLCanvasElement, overlay: HTMLElement, shiftX = 0) 
   const cWhite = new THREE.Color(0xdddddd);
   const eGrey = new THREE.Color(0x404040);
   const eRed = new THREE.Color(0x99271f);
+  const eGreen = new THREE.Color(0x1a6b49);
 
   const render = (cam: THREE.Vector3, look: THREE.Vector3) => {
     const dist = cam.distanceTo(look);
@@ -304,6 +306,10 @@ function createWeb(canvas: HTMLCanvasElement, overlay: HTMLElement, shiftX = 0) 
       t.mesh.visible = t.wire.visible = t.halo.visible = t.pop > 0.001;
       t.mesh.scale.setScalar(s);
       t.wire.scale.setScalar(s * 1.5);
+      (t.mesh.material as THREE.MeshLambertMaterial).color.copy(redC).lerp(greenC, t.calm);
+      (t.mesh.material as THREE.MeshLambertMaterial).emissive.setHex(0x7a1d16).lerp(eGreen, t.calm);
+      (t.wire.material as THREE.MeshBasicMaterial).color.copy(redC).lerp(greenC, t.calm);
+      (t.halo.material as THREE.SpriteMaterial).color.copy(redC).lerp(greenC, t.calm);
       t.mesh.rotation.y = t.spin;
       t.wire.rotation.y = -t.spin * 0.6;
       t.halo.scale.setScalar(s * (5 + t.pulse * 3));
@@ -859,10 +865,95 @@ function sceneDraft(web: Web, hud: HTMLElement) {
   };
 }
 
+/* 11. Outro: the web calms to green behind the logo, the tagline and the address. */
+const SITE = "howtheygot.us";
+
+function sceneOutro(web: Web, hud: HTMLElement, logo: HTMLElement | null) {
+  const col = mk(hud, "pv-abs", "inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:20px;");
+  mk(hud, "pv-abs", "inset:0;background:radial-gradient(900px 560px at 50% 50%,rgba(0,0,0,.72),transparent 75%);z-index:-1;");
+  const lockup = mk(col, "", "display:flex;align-items:center;gap:44px;");
+  const mark = mk(lockup, "", "flex:none;width:160px;height:160px;");
+  if (logo?.firstElementChild) mark.appendChild(logo.firstElementChild.cloneNode(true));
+  const word = mk(lockup, "font-display pv-display", "font-size:136px;white-space:nowrap;", "Scammer’s View");
+  const tag = mk(col, "", "margin-top:44px;font-size:42px;font-weight:500;color:rgba(255,255,255,.78);white-space:nowrap;", "See yourself the way a scammer does. Then fix it.");
+  const pill = mk(
+    col,
+    "",
+    "margin-top:64px;display:flex;align-items:center;gap:18px;box-sizing:border-box;height:92px;padding:0 48px 0 40px;border-radius:999px;background:#fff;color:#000;font-size:40px;font-weight:600;white-space:nowrap;",
+    `<svg width="30" height="34" viewBox="0 0 30 34" fill="none" style="flex:none"><rect x="2" y="14" width="26" height="18" rx="4.5" fill="#000"/><path d="M8 14V10a7 7 0 0 1 14 0v4" stroke="#000" stroke-width="3.6"/></svg>`,
+  );
+  const text = document.createElement("span");
+  const caret = document.createElement("span");
+  caret.style.cssText = "display:inline-block;width:3px;height:42px;background:#000;";
+  text.textContent = SITE;
+  const line = document.createElement("span");
+  line.style.cssText = "display:flex;align-items:center;white-space:nowrap;";
+  line.append(text, caret);
+  pill.append(line);
+  // Fix the pill at its full width so it does not grow as the address types in.
+  pill.style.width = `${Math.ceil(pill.getBoundingClientRect().width) + 6}px`;
+  const floats = [
+    { el: icon(hud, "lock", 150, "position:absolute;left:190px;top:570px;"), at: 4.4 },
+    { el: icon(hud, "shield", 190, "position:absolute;left:1470px;top:170px;"), at: 4.55 },
+    { el: icon(hud, "key", 140, "position:absolute;left:1380px;top:730px;"), at: 4.7 },
+  ];
+
+  return (t: number) => {
+    // All idle motion comes to rest at 5.5 s, so the last 1.5 s is one still frame.
+    const turn = cruise(seg(t, 0.3, 5.2), 0.1, 0.3);
+    const m = 5.2 * turn;
+    const calm = cruise(seg(t, 0.3, 1.5), 0.2, 0.4);
+    web.hubs.forEach((h) => (h.pop = h.grow = 1));
+    web.facts.forEach((f) => (f.pop = f.grow = 1));
+    web.targets.forEach((tg, i) => {
+      tg.pop = 1;
+      tg.spin = m * 0.4 + i;
+      tg.pulse = 0;
+      tg.ringP = 0;
+      tg.calm = calm;
+    });
+    web.arcs.forEach((a) => {
+      a.from = 0;
+      a.to = 1;
+      a.gap = 0;
+      a.green = calm;
+      a.opacity = 1 - 0.35 * calm;
+      web.facts[a.fact]!.red = 1 - calm;
+    });
+    web.render(orbit(-30 + 40 * turn, 12, 66 - 6 * turn), new THREE.Vector3(0, 0, 0));
+
+    const lp = seg(t, 0.4, 0.7);
+    mark.style.opacity = seg(t, 0.4, 0.3).toFixed(3);
+    mark.style.transform = `scale(${pop(lp).toFixed(3)})`;
+    const wp = outCubic(seg(t, 0.7, 0.9));
+    word.style.opacity = seg(t, 0.7, 0.5).toFixed(3);
+    word.style.transform = `translateY(${((1 - wp) * 36).toFixed(1)}px)`;
+    const tp = outCubic(seg(t, 1.8, 0.9));
+    tag.style.opacity = seg(t, 1.8, 0.6).toFixed(3);
+    tag.style.transform = `translateY(${((1 - tp) * 22).toFixed(1)}px)`;
+
+    const pp = outCubic(seg(t, 3.0, 0.45));
+    const press = seg(t, 4.75, 0.4);
+    const dip = press > 0 && press < 1 ? Math.sin(press * Math.PI) : 0;
+    pill.style.opacity = seg(t, 3.0, 0.25).toFixed(3);
+    pill.style.transform = `translateY(${((1 - pp) * 20).toFixed(1)}px) scale(${(lerp(0.9, 1, pp) - 0.035 * dip).toFixed(3)})`;
+    pill.style.boxShadow = `0 0 0 ${(9 * dip).toFixed(1)}px rgba(255,255,255,${(0.3 * dip).toFixed(3)})`;
+    const typed = SITE.slice(0, Math.floor(SITE.length * seg(t, 3.4, 0.75)));
+    if (text.textContent !== typed) text.textContent = typed;
+    caret.style.opacity = t >= 3.2 && t < 4.6 && (t < 4.15 || Math.floor((t - 4.15) * 4) % 2 === 1) ? "1" : "0";
+
+    floats.forEach((f, i) => {
+      f.el.style.opacity = seg(t, f.at, 0.2).toFixed(3);
+      f.el.style.transform = bob(m, i, 0, pop(seg(t, f.at, 0.5)));
+    });
+  };
+}
+
 export function Promo3D({ scene }: { scene: number }) {
   const stageRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -887,6 +978,10 @@ export function Promo3D({ scene }: { scene: number }) {
           labels.style.display = "none";
           canvas.style.filter = "blur(5px) brightness(0.6)";
           frame = sceneChips(web, hud);
+        } else if (scene === 11) {
+          labels.style.display = "none";
+          canvas.style.filter = "blur(4px) brightness(0.5)";
+          frame = sceneOutro(web, hud, logoRef.current);
         } else if (scene === 10) {
           labels.style.display = "none";
           canvas.style.filter = "blur(5px) brightness(0.5)";
@@ -930,6 +1025,10 @@ export function Promo3D({ scene }: { scene: number }) {
       <style>{"nextjs-portal{display:none!important}"}</style>
       <div ref={innerRef} className="pv-abs" style={{ inset: 0 }}>
         <canvas ref={canvasRef} width={W} height={H} className="pv-abs" style={{ inset: 0, width: W, height: H }} />
+      </div>
+      {/* Source for the outro logo: the scene clones it into its own layout. */}
+      <div ref={logoRef} aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+        <LogoMark size={160} title="" />
       </div>
     </main>
   );
