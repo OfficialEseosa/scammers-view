@@ -8,6 +8,7 @@ import { SpinningScan, type ScanPoint } from "./SpinningScan";
 import { ScanLoader } from "./ScanLoader";
 import { HeadTurnChallenge, TURN_TARGET_DEG, type CaptureKind } from "@/lib/face/liveness";
 import { SAME_PERSON_THRESHOLD } from "@/lib/face/match";
+import { faceFit } from "@/lib/face/framing";
 import { estimateYawDeg } from "@/lib/face/pose";
 import { describeLargestFace, euclidean, loadRecognizer } from "@/lib/face/recognizer";
 import { setFaceReference, trackCanvas, wipeCanvas } from "@/lib/face/store";
@@ -172,6 +173,7 @@ const PROMPT: Record<TurnDirection, string> = {
 
 export function LivenessScan({ onComplete, onFail, className }: LivenessScanProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
@@ -388,6 +390,8 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
     const order = challenge.order;
 
     setStage({ kind: "scanning" });
+    // On a phone the page may be scrolled past the camera frame; bring it back before the directions start.
+    if (window.innerWidth < 640) sectionRef.current?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
     let lastVideoTime = -1;
     let frameNo = 0;
     let noFaceSince = performance.now();
@@ -517,16 +521,16 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
           if (p.y > y1) y1 = p.y;
         }
         box = { x0, y0, x1, y1 };
-        const width = x1 - x0;
         const matrix = result.facialTransformationMatrixes?.[0]?.data;
         const y = estimateYawDeg(lm, matrix);
         sampleYaw = y;
         noFaceSince = now;
         if (challenge.phase === "center") {
-          if (width < 0.12) {
+          const fit = faceFit(box, video.videoHeight > video.videoWidth);
+          if (fit === "closer") {
             currentHint = { tone: "info", text: "Move a little closer." };
             sampleYaw = null;
-          } else if (width > 0.85 || y0 < 0 || y1 > 1) {
+          } else if (fit === "back") {
             currentHint = { tone: "info", text: "Move back so your whole face fits." };
             sampleYaw = null;
           }
@@ -623,7 +627,8 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
 
   return (
     <section
-      className={`relative flex w-full max-w-md flex-col gap-4 ${className ?? ""}`}
+      ref={sectionRef}
+      className={`relative flex w-full max-w-md scroll-mt-20 flex-col gap-4 ${className ?? ""}`}
       aria-label="Live face scan"
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-frame border border-edge-strong bg-surface">
@@ -646,6 +651,24 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         <span className="pointer-events-none absolute right-5 top-5 h-7 w-7 border-r-2 border-t-2 border-fg" aria-hidden="true" />
         <span className="pointer-events-none absolute bottom-5 left-5 h-7 w-7 border-b-2 border-l-2 border-fg" aria-hidden="true" />
         <span className="pointer-events-none absolute bottom-5 right-5 h-7 w-7 border-b-2 border-r-2 border-fg" aria-hidden="true" />
+
+        {/* Phones: the directions sit on the camera frame, where the eyes already are. The copy below it is off screen there. */}
+        {stage.kind === "scanning" && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-gradient-to-t from-canvas via-canvas/85 to-transparent px-6 pb-6 pt-14 text-center sm:hidden"
+            aria-hidden="true"
+          >
+            <p className="sv-display text-[1.75rem] leading-tight">
+              {direction === "left" && <span>&larr; </span>}
+              {prompt}
+              {direction === "right" && <span> &rarr;</span>}
+            </p>
+            {hint && <p className={hint.tone === "warn" ? "text-warn-fg" : "text-fg"}>{hint.text}</p>}
+            <p className="text-sm text-muted">
+              {stepsDone} of 2 turns{secondsLeft !== null ? `, ${secondsLeft}s left` : ""}
+            </p>
+          </div>
+        )}
 
         {stage.kind !== "scanning" && (
           <div
@@ -701,7 +724,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
 
       {stage.kind === "scanning" && (
         <div className="flex flex-col gap-3" aria-live="polite">
-          <p className="sv-display text-[1.75rem] leading-tight sm:text-3xl">
+          <p className="sr-only sv-display text-[1.75rem] leading-tight sm:not-sr-only sm:text-3xl">
             {direction === "left" && <span aria-hidden="true">&larr; </span>}
             {prompt}
             {direction === "right" && <span aria-hidden="true"> &rarr;</span>}
@@ -732,7 +755,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
             <span className="tabular-nums">{Math.round(Math.abs(yaw))}&deg;</span>
           </div>
           {hint && (
-            <div role="status">
+            <div role="status" className="sr-only sm:not-sr-only">
               {hint.tone === "warn" ? <WarnNote className="text-xl">{hint.text}</WarnNote> : <p className="text-xl">{hint.text}</p>}
             </div>
           )}
