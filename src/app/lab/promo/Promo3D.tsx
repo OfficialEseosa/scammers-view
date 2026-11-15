@@ -6,7 +6,7 @@ import { LogoMark } from "@/design/brand/Logo";
 import "./promo.css";
 
 /*
- * Scenes 7-11 of the demo video. Everything on screen is a pure function of one time value:
+ * Scenes 7-12 of the demo video. Everything on screen is a pure function of one time value:
  * window.__renderAt(t) sets every position, camera and opacity for second t and draws one frame,
  * so the recorder can step through the clip frame by frame.
  */
@@ -24,7 +24,7 @@ const H = 1080;
 const RED = "#ff5a4f";
 const GREEN = "#3ddc97";
 const FOV = 42;
-export const DURATIONS: Record<number, number> = { 7: 11.5, 8: 7.5, 9: 8, 10: 10, 11: 7 };
+export const DURATIONS: Record<number, number> = { 7: 11.5, 8: 7.5, 9: 8, 10: 10, 11: 7, 12: 15 };
 
 /* ---------- timing helpers ---------- */
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -226,7 +226,9 @@ function createWeb(canvas: HTMLCanvasElement, overlay: HTMLElement, shiftX = 0) 
       return { geo, m };
     });
     // from/to: the drawn stretch of the arc (0 = fact end, 1 = account end). gap: hole opened around the middle.
-    return { fact, target: tg, mat, halves, from: 0, to: 0, gap: 0, green: 0, opacity: 1 };
+    const spark = halo(0x3ddc97, 0);
+    // spark: position of a soft highlight travelling along the arc (0..1), or -1 for none.
+    return { fact, target: tg, mat, halves, pts, sparkEl: spark, spark: -1, from: 0, to: 0, gap: 0, green: 0, opacity: 1 };
   });
   const setHalf = (half: { geo: THREE.TubeGeometry; m: THREE.Mesh }, a: number, b: number) => {
     const s = Math.floor(clamp01(a) * TUBE_SEG);
@@ -326,6 +328,14 @@ function createWeb(canvas: HTMLCanvasElement, overlay: HTMLElement, shiftX = 0) 
       setHalf(a.halves[0]!, a.from * 2, lo * 2);
       setHalf(a.halves[1]!, hi * 2 - 1, a.to * 2 - 1);
       if (a.opacity <= 0.001) a.halves.forEach((h) => (h.m.visible = false));
+      a.sparkEl.visible = a.spark > 0 && a.spark < 1;
+      if (a.sparkEl.visible) {
+        const at = a.spark * (a.pts.length - 1);
+        const i = Math.min(a.pts.length - 2, Math.floor(at));
+        a.sparkEl.position.copy(a.pts[i]!).lerp(a.pts[i + 1]!, at - i);
+        a.sparkEl.scale.setScalar(7);
+        (a.sparkEl.material as THREE.SpriteMaterial).opacity = Math.sin(a.spark * Math.PI);
+      }
     }
 
     // Labels: below the node, smaller and dimmer with distance, and dimmed where a nearer label covers them.
@@ -868,7 +878,7 @@ function sceneDraft(web: Web, hud: HTMLElement) {
 /* 11. Outro: the web calms to green behind the logo, the tagline and the address. */
 const SITE = "howtheygot.us";
 
-function sceneOutro(web: Web, hud: HTMLElement, logo: HTMLElement | null) {
+function sceneOutro(web: Web, hud: HTMLElement, logo: HTMLElement | null, long: boolean) {
   const col = mk(hud, "pv-abs", "inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:20px;");
   mk(hud, "pv-abs", "inset:0;background:radial-gradient(900px 560px at 50% 50%,rgba(0,0,0,.72),transparent 75%);z-index:-1;");
   const lockup = mk(col, "", "display:flex;align-items:center;gap:44px;");
@@ -900,8 +910,13 @@ function sceneOutro(web: Web, hud: HTMLElement, logo: HTMLElement | null) {
 
   return (t: number) => {
     // All idle motion comes to rest at 5.5 s, so the last 1.5 s is one still frame.
+    // The long cut keeps the same pace but only comes to rest at 14 s, with a highlight running the green paths.
     const turn = cruise(seg(t, 0.3, 5.2), 0.1, 0.3);
-    const m = 5.2 * turn;
+    const span = 13.7;
+    const ease: [number, number] = [0.52 / span, 1.2 / span];
+    const run = span * (1 - ease[0] / 2 - ease[1] / 2) * cruise(seg(t, 0.3, span), ease[0], ease[1]);
+    const m = long ? 1.25 * run : 5.2 * turn;
+    const angle = long ? (50 / 5.2) * run : 40 * turn;
     const calm = cruise(seg(t, 0.3, 1.5), 0.2, 0.4);
     web.hubs.forEach((h) => (h.pop = h.grow = 1));
     web.facts.forEach((f) => (f.pop = f.grow = 1));
@@ -920,7 +935,12 @@ function sceneOutro(web: Web, hud: HTMLElement, logo: HTMLElement | null) {
       a.opacity = 1 - 0.35 * calm;
       web.facts[a.fact]!.red = 1 - calm;
     });
-    web.render(orbit(-30 + 40 * turn, 12, 66 - 6 * turn), new THREE.Vector3(0, 0, 0));
+    web.arcs.forEach((a, k) => {
+      const since = t - 5.6 - k * 0.22;
+      const lap = since - Math.floor(since / 3) * 3;
+      a.spark = long && since > 0 && t - lap + 1.7 < 13.9 ? lap / 1.7 : -1;
+    });
+    web.render(orbit(-30 + angle, 12, 66 - 6 * turn), new THREE.Vector3(0, 0, 0));
 
     const lp = seg(t, 0.4, 0.7);
     mark.style.opacity = seg(t, 0.4, 0.3).toFixed(3);
@@ -978,10 +998,10 @@ export function Promo3D({ scene }: { scene: number }) {
           labels.style.display = "none";
           canvas.style.filter = "blur(5px) brightness(0.6)";
           frame = sceneChips(web, hud);
-        } else if (scene === 11) {
+        } else if (scene === 11 || scene === 12) {
           labels.style.display = "none";
           canvas.style.filter = "blur(4px) brightness(0.5)";
-          frame = sceneOutro(web, hud, logoRef.current);
+          frame = sceneOutro(web, hud, logoRef.current, scene === 12);
         } else if (scene === 10) {
           labels.style.display = "none";
           canvas.style.filter = "blur(5px) brightness(0.5)";
