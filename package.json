@@ -41,7 +41,6 @@
     "next-auth": "^5.0.0-beta.32",
     "playwright-core": "^1.65.1",
     "qrcode": "^1.5.4",
-    "qrcode-generator": "^2.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-force-graph-3d": "^1.29.2",

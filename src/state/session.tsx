@@ -23,7 +23,7 @@ import { leave } from "@/app/actions";
 
 export type Stage = "face" | "live" | "results" | "ended";
 export type FaceStatus = "pending" | "verified" | "skipped";
-export type ResultsTab = "fixes" | "map" | "practice" | "check" | "quiz" | "photos" | "places" | "breach" | "campus" | "family";
+export type ResultsTab = "fixes" | "map" | "practice" | "check" | "quiz" | "photos" | "places" | "breach" | "campus";
 
 /** `more`: listed under the "More" menu instead of the main tab row. */
 export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated: boolean; more?: boolean }[] = [
