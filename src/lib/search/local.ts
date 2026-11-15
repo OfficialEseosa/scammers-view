@@ -2,7 +2,7 @@ import { CUES } from "./cues";
 import { fixDocs, patternDocs } from "./docs";
 import type { FixHit, PatternHit, ScamSearch } from "./types";
 
-/** No-account fallback: idf-weighted token overlap over the same documents Typesense indexes, plus cue boosts. */
+/** Idf-weighted token overlap over the reference documents, plus cue boosts. */
 
 const STOP = new Set(
   "a an and are as at be by for from has have i if in into is it its me my no not of on or our so that the their them then there they this to was we were will with you your yours".split(" "),

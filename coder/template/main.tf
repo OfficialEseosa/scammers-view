@@ -1,4 +1,4 @@
-# Coder template: one workspace = the Next app on :3000 and a Typesense sidecar (indexed on start).
+# Coder template: one workspace = the Next app on :3000.
 # Shared API keys are template variables (set once by the template admin, marked sensitive);
 # developers only pick a repo and branch.
 
@@ -74,14 +74,8 @@ resource "random_password" "auth_secret" {
   special = false
 }
 
-resource "random_password" "typesense_key" {
-  length  = 32
-  special = false
-}
-
 locals {
   name        = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
-  typesense   = "${local.name}-typesense"
 }
 
 # ---- Agent ---------------------------------------------------------------------------------
@@ -99,9 +93,6 @@ resource "coder_agent" "main" {
     APIFY_TOKEN          = var.apify_token
     AUTH_SECRET          = random_password.auth_secret.result
     AUTH_TRUST_HOST      = "true"
-
-    TYPESENSE_HOST    = "http://${local.typesense}:8108"
-    TYPESENSE_API_KEY = random_password.typesense_key.result
   }
 
   startup_script = <<-EOT
@@ -113,23 +104,8 @@ resource "coder_agent" "main" {
     cd scammers-view
     npm ci --no-audit --no-fund
 
-    # Typesense can take a few seconds to come up; the app falls back to local search meanwhile.
-    for i in $(seq 1 30); do
-      curl -fs "$TYPESENSE_HOST/health" >/dev/null && break
-      sleep 2
-    done
-    npm run index:typesense || echo "Typesense indexing failed; /api/check will use local search."
-
     nohup npm run dev -- --hostname 0.0.0.0 --port 3000 > /tmp/next.log 2>&1 &
   EOT
-
-  metadata {
-    display_name = "Typesense"
-    key          = "typesense"
-    script       = "curl -fs $TYPESENSE_HOST/health >/dev/null && echo up || echo down"
-    interval     = 30
-    timeout      = 5
-  }
 }
 
 resource "coder_app" "web" {
@@ -148,16 +124,6 @@ resource "coder_app" "web" {
   }
 }
 
-resource "coder_app" "typesense" {
-  agent_id     = coder_agent.main.id
-  slug         = "typesense"
-  display_name = "Typesense health"
-  url          = "http://${local.typesense}:8108/health"
-  icon         = "/icon/database.svg"
-  subdomain    = false
-  share        = "owner"
-}
-
 # ---- Containers ----------------------------------------------------------------------------
 
 resource "docker_network" "ws" {
@@ -171,13 +137,6 @@ resource "docker_volume" "home" {
   }
 }
 
-resource "docker_volume" "typesense" {
-  name = "${local.name}-typesense"
-  lifecycle {
-    ignore_changes = all
-  }
-}
-
 resource "docker_image" "workspace" {
   name = "${local.name}-image"
   build {
@@ -185,24 +144,6 @@ resource "docker_image" "workspace" {
   }
   triggers = {
     dockerfile = filesha1("${path.module}/Dockerfile")
-  }
-}
-
-resource "docker_container" "typesense" {
-  count = data.coder_workspace.me.start_count
-  image = "typesense/typesense:29.0"
-  name  = local.typesense
-  command = [
-    "--data-dir", "/data",
-    "--api-key", random_password.typesense_key.result,
-    "--enable-cors",
-  ]
-  networks_advanced {
-    name = docker_network.ws.name
-  }
-  volumes {
-    container_path = "/data"
-    volume_name    = docker_volume.typesense.name
   }
 }
 

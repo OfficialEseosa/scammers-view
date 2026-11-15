@@ -1,9 +1,6 @@
 # Coder workspace
 
-One workspace runs everything for Scammer's View:
-
-- the Next app on port 3000 (the **Scammer's View** app button)
-- a Typesense container, indexed on every start with `npm run index:typesense`
+One workspace runs Scammer's View: the Next app on port 3000 (the **Scammer's View** app button).
 
 ## Push the template
 
@@ -14,7 +11,7 @@ coder templates push scammers-view -d coder/template \
   --variable google_client_id=... --variable google_client_secret=...
 ```
 
-Every variable is optional. Without a key the matching feature falls back or hides: no Typesense means local search. `AUTH_SECRET` and the Typesense key are generated per workspace.
+Every variable is optional. Without a key the matching feature falls back or hides. `AUTH_SECRET` is generated per workspace.
 
 The template uses the Docker provider, so the Coder server (or its provisioner) needs access to a Docker daemon.
 

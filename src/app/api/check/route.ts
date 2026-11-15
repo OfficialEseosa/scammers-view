@@ -11,8 +11,8 @@ const Body = z.union([
 const NO_STORE = { "cache-control": "no-store" };
 
 /**
- * "Is this a scam?" Compares pasted text with reference scam patterns (Typesense, or the local
- * scorer) and points at the warning signs in it. Open without sign-in: nothing personal is
+ * "Is this a scam?" Compares pasted text with reference scam patterns and points at the
+ * warning signs in it. Open without sign-in: nothing personal is
  * involved, and the pasted text is never stored or logged. Links and phone numbers in it are
  * also looked up in public scam reports (only those, never the message).
  */
@@ -24,8 +24,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Paste up to 4,000 characters." }, { status: 400, headers: NO_STORE });
 
   if ("fixQuery" in parsed.data) {
-    const { engine, hits } = await searchFixes(parsed.data.fixQuery, 6);
-    return Response.json({ engine, fixes: hits }, { headers: NO_STORE });
+    return Response.json({ fixes: await searchFixes(parsed.data.fixQuery, 6) }, { headers: NO_STORE });
   }
 
   return Response.json(await analyzeMessage(parsed.data.text), { headers: NO_STORE });

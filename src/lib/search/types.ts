@@ -37,7 +37,7 @@ export interface FixHit {
 }
 
 export interface ScamSearch {
-  name: "typesense" | "local";
+  name: "local";
   searchPatterns(text: string, limit: number): Promise<PatternHit[]>;
   searchFixes(query: string, limit: number): Promise<FixHit[]>;
 }

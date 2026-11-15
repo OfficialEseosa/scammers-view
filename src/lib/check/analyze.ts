@@ -16,7 +16,6 @@ export interface CheckMatch {
 }
 
 export interface CheckResult {
-  engine: "typesense" | "local";
   level: CheckLevel;
   spans: Span[];
   matches: CheckMatch[];
@@ -30,7 +29,7 @@ export interface CheckResult {
 export async function analyzeMessage(text: string, limit = 3): Promise<CheckResult> {
   const spans = findSpans(text);
   const cueIds = new Set(spans.map((s) => s.cueId));
-  const [{ engine, hits }, reported] = await Promise.all([searchPatterns(text, limit), checkReputation(text)]);
+  const [hits, reported] = await Promise.all([searchPatterns(text, limit), checkReputation(text)]);
   const matches = hits.map((h) => {
     const p = PATTERN_BY_ID[h.id];
     return {
@@ -45,5 +44,5 @@ export async function analyzeMessage(text: string, limit = 3): Promise<CheckResu
     };
   });
   const level: CheckLevel = isReported(reported) || cueIds.size >= 3 ? "high" : cueIds.size >= 1 ? "some" : "low";
-  return { engine, level, spans, matches, reported };
+  return { level, spans, matches, reported };
 }

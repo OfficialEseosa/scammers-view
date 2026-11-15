@@ -6,7 +6,7 @@ import { ScamCheck } from "@/features/check";
 export default function CheckLabPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 sm:px-8 py-10 flex flex-col gap-6">
-      <p className="text-sm text-muted">Lab: scam checker (Typesense when TYPESENSE_HOST is set, otherwise the built-in matcher)</p>
+      <p className="text-sm text-muted">Lab: scam checker</p>
       <ScamCheck />
     </main>
   );

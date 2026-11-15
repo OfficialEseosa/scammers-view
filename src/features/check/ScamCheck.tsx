@@ -26,7 +26,7 @@ type Match = {
   report: { title: string; url: string }[];
 };
 
-type CheckResult = { engine: "typesense" | "local"; level: "high" | "some" | "low"; spans: Span[]; matches: Match[]; reported?: Reported };
+type CheckResult = { level: "high" | "some" | "low"; spans: Span[]; matches: Match[]; reported?: Reported };
 
 type State = { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; text: string; data: CheckResult };
 
@@ -174,7 +174,6 @@ function CheckReport({
             </div>
           </Card>
         ))}
-        <p className="text-sm text-subtle">Matched with {data.engine === "typesense" ? "Typesense" : "the built-in matcher"}.</p>
       </div>
     </div>
   );
