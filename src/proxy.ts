@@ -6,7 +6,7 @@ import { readKill } from "@/lib/admin/killSwitch";
  * screen and API routes answer 503. The admin screen and sign-in stay
  * reachable so the owner can turn it back off.
  */
-const OPEN = ["/killed", "/admin", "/api/admin", "/api/auth"];
+const OPEN = ["/killed", "/admin", "/api/admin", "/api/auth", "/privacy", "/terms"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

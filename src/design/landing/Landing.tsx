@@ -58,6 +58,14 @@ export function Landing({ cta, endCta }: { cta: ReactNode; endCta: ReactNode }) 
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-muted sm:px-8">
           <BrandMark size={30} />
           <span>Every example on this page is fictional.</span>
+          <nav aria-label="Legal" className="flex gap-5">
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-fg">
+              Privacy
+            </Link>
+            <Link href="/terms" className="underline underline-offset-4 hover:text-fg">
+              Terms
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
