@@ -12,6 +12,7 @@ import type { CaseDoc, CaseHit, CaseRequest, CaseResponse } from "./types";
  */
 
 const TIMEOUT_MS = 4000;
+const BATCH = 25;
 const ALL = FindingCategory.options;
 
 export const CASE_SCHEMA = {
@@ -47,16 +48,23 @@ export async function reindexCases(cfg: TypesenseConfig, docs: CaseDoc[] = caseD
   await call(cfg, `/collections/${CASE_COLLECTION}`, { method: "DELETE" }).catch(() => null);
   // First creation downloads the embedding model, which can take a while.
   await call(cfg, "/collections", { method: "POST", body: JSON.stringify(CASE_SCHEMA), timeoutMs: 180_000 });
-  const res = await fetch(`${cfg.host}/collections/${CASE_COLLECTION}/documents/import?action=upsert`, {
-    method: "POST",
-    headers: { "X-TYPESENSE-API-KEY": cfg.apiKey, "content-type": "text/plain" },
-    body: docs.map((d) => JSON.stringify(d)).join("\n"),
-    signal: AbortSignal.timeout(300_000),
-  });
-  const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l) as { success: boolean; error?: string });
-  const failed = lines.filter((l) => !l.success);
-  if (!res.ok || failed.length) throw new Error(`Import into ${CASE_COLLECTION} failed: ${failed[0]?.error ?? res.status}`);
-  return lines.length;
+  // Small batches with a pause: a 0.5 GB cluster rejects a large write while it embeds.
+  let loaded = 0;
+  for (let i = 0; i < docs.length; i += BATCH) {
+    const res = await fetch(`${cfg.host}/collections/${CASE_COLLECTION}/documents/import?action=upsert`, {
+      method: "POST",
+      headers: { "X-TYPESENSE-API-KEY": cfg.apiKey, "content-type": "text/plain" },
+      body: docs.slice(i, i + BATCH).map((d) => JSON.stringify(d)).join("\n"),
+      signal: AbortSignal.timeout(300_000),
+    });
+    const body = await res.text();
+    const lines = body.split(/\r?\n/).filter((l) => l.trim());
+    const failed = lines.filter((l) => !/^\{"success":\s*true\}$/.test(l.trim()));
+    if (!res.ok || failed.length) throw new Error(`Import into ${CASE_COLLECTION} failed: ${(failed[0] ?? String(res.status)).slice(0, 200)}`);
+    loaded += lines.length;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return loaded;
 }
 
 /** "needs is a subset of exposed" written as "needs holds none of the unexposed categories". */
