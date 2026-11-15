@@ -15,7 +15,17 @@ import { GLYPH, type EngineStop, type MapEngine, type Theme } from "./engines/ty
 const STEP_MS = 4000;
 const FLY_MS = 2400;
 
-type EngineKind = "gl" | "leaflet";
+export type EngineKind = "google" | "gl" | "leaflet";
+
+/** Best first. Each engine that fails hands over to the next one. */
+const CHAIN: EngineKind[] = ["google", "gl", "leaflet"];
+const nextEngine = (k: EngineKind): EngineKind | null => CHAIN[CHAIN.indexOf(k) + 1] ?? null;
+
+function loadEngine(k: EngineKind) {
+  if (k === "google") return import("./engines/google3d").then((m) => m.createGoogle3dEngine);
+  if (k === "gl") return import("./engines/gl").then((m) => m.createGlEngine);
+  return import("./engines/leaflet").then((m) => m.createLeafletEngine);
+}
 
 function readTheme(): Theme {
   return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
@@ -44,16 +54,17 @@ function placeName(s: TourStop, masked: boolean): string {
 export default function PlacesTour({
   findings,
   masked = false,
-  forceFallback = false,
+  engine = "google",
 }: {
   findings: Finding[];
   masked?: boolean;
-  forceFallback?: boolean;
+  /** First engine to try (the chain continues below it on failure). */
+  engine?: EngineKind;
 }) {
   const places = usePlaces(findings, masked);
   // The map mounts only when there is something to show, and remounts cleanly if findings go and come back.
   if (places.stops.length === 0) return <EmptyState>No places in what was found</EmptyState>;
-  return <TourView {...places} masked={masked} forceFallback={forceFallback} />;
+  return <TourView {...places} masked={masked} firstEngine={engine} />;
 }
 
 function TourView({
@@ -62,8 +73,8 @@ function TourView({
   authError,
   retry,
   masked,
-  forceFallback,
-}: PlacesState & { masked: boolean; forceFallback: boolean }) {
+  firstEngine,
+}: PlacesState & { masked: boolean; firstEngine: EngineKind }) {
   const found = useMemo(() => stops.filter((s) => s.status === "found"), [stops]);
   const summary = useMemo(() => summarise(stops), [stops]);
 
@@ -74,7 +85,7 @@ function TourView({
   const railRef = useRef<HTMLOListElement>(null);
   const engine = useRef<MapEngine | null>(null);
 
-  const [engineKind, setEngineKind] = useState<EngineKind>(forceFallback ? "leaflet" : "gl");
+  const [engineKind, setEngineKind] = useState<EngineKind>(firstEngine);
   const [ready, setReady] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -119,17 +130,17 @@ function TourView({
     let alive = true;
     let made: MapEngine | null = null;
     setReady(false);
+    const next = nextEngine(engineKind);
     const fallback = () => {
-      if (!alive) return;
+      if (!alive || !next) return;
       alive = false;
       made?.destroy();
       made = null;
       engine.current = null;
       el.remove();
-      setEngineKind("leaflet");
+      setEngineKind(next);
     };
-    const load = engineKind === "gl" ? import("./engines/gl").then((m) => m.createGlEngine) : import("./engines/leaflet").then((m) => m.createLeafletEngine);
-    load
+    loadEngine(engineKind)
       .then((factory) =>
         factory({
           container: el,
@@ -145,9 +156,7 @@ function TourView({
           onUserInteract: () => {
             touched.current = true;
           },
-          onFail: () => {
-            if (engineKind === "gl") fallback();
-          },
+          onFail: () => fallback(),
           onReady: () => {
             if (alive) setReady(true);
           },
@@ -160,8 +169,8 @@ function TourView({
         setReady(true);
       })
       .catch((err: unknown) => {
-        if (engineKind !== "gl" || !alive) return;
-        console.warn(`[places] 3D map unavailable (${err instanceof Error ? err.message : "error"}); using the flat map`);
+        if (!next || !alive) return;
+        console.warn(`[places] ${engineKind} map unavailable (${err instanceof Error ? err.message : "error"}); trying ${next}`);
         fallback();
       });
     return () => {

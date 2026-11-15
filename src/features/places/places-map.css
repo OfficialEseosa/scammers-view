@@ -253,6 +253,31 @@ button.sv-stop:active:not(:disabled) { transform: scale(0.98); }
 /* On phones the bottom sheet overlaps the map's lower edge: lift the attribution above it. */
 @media (max-width: 767px) { .sv-places-map .maplibregl-ctrl-bottom-right, .sv-places-map .maplibregl-ctrl-bottom-left { bottom: 20px; } }
 
+/* ---------- Google photorealistic 3D ---------- */
+/* Real-colour imagery under black-and-white chrome: a soft dark vignette keeps white UI legible.
+   Kept light at the bottom edge so Google's logo and attribution stay clearly visible. */
+.sv-places[data-engine="google"] .sv-places-stage::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0) 26%),
+    linear-gradient(to top, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0) 18%),
+    radial-gradient(120% 90% at 60% 45%, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.38) 100%);
+}
+@media (min-width: 768px) {
+  .sv-places[data-engine="google"] .sv-places-stage::after {
+    background:
+      linear-gradient(to bottom, rgb(0 0 0 / 0.45), rgb(0 0 0 / 0) 22%),
+      linear-gradient(to right, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0) 38%),
+      radial-gradient(120% 100% at 65% 45%, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.32) 100%);
+  }
+  /* Lift the caption card clear of Google's logo in the bottom-left corner. */
+  .sv-places[data-engine="google"] .sv-places-panel { bottom: 48px; }
+}
+/* Phones: the sheet must not overlap the map's bottom edge, where the Google logo sits. */
+@media (max-width: 767px) { .sv-places[data-engine="google"] .sv-places-panel { margin-top: 0; } }
+.sv-places[data-engine="google"] .sv-places-status { background: color-mix(in srgb, var(--elevated) 94%, transparent); box-shadow: 0 4px 14px rgb(0 0 0 / 0.35); }
+.sv-g3d { background: #000; }
+
 /* ---------- Leaflet fallback ---------- */
 .sv-leaflet { background: var(--sunken); }
 .sv-leaflet .leaflet-tile-pane { filter: grayscale(1) contrast(1.05) brightness(1.02); }

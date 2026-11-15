@@ -154,9 +154,9 @@ export const createGlEngine: EngineFactory = async (o) => {
           paint: {
             "fill-extrusion-color": [
               "interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8],
-              0, dark ? "#1d1d1d" : "#e4e4e4",
-              40, dark ? "#2c2c2c" : "#d2d2d2",
-              120, dark ? "#3a3a3a" : "#c0c0c0",
+              0, dark ? "#3c3c3c" : "#e4e4e4",
+              40, dark ? "#4a4a4a" : "#d2d2d2",
+              120, dark ? "#5a5a5a" : "#c0c0c0",
             ],
             "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["coalesce", ["get", "render_height"], 8]],
             "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["coalesce", ["get", "render_min_height"], 0]],

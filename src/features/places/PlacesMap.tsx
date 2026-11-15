@@ -18,7 +18,7 @@ function TourSkeleton() {
   );
 }
 
-// The tour shell is small; MapLibre (or Leaflet) is imported inside it only once it mounts.
+// The tour shell is small; Google 3D, MapLibre or Leaflet is imported inside it only once it mounts.
 const Tour = dynamic(() => import("./PlacesTour"), { ssr: false, loading: TourSkeleton });
 
 export interface PlacesMapProps {
@@ -27,13 +27,20 @@ export interface PlacesMapProps {
   masked?: boolean;
 }
 
+type EngineKind = "google" | "gl" | "leaflet";
+
 const noop = () => () => {};
-/** `?map=leaflet` forces the fallback renderer (for testing). */
-const wantsFallback = () => new URLSearchParams(window.location.search).get("map") === "leaflet";
+// Google 3D first when a browser key is configured; MapLibre otherwise.
+const DEFAULT_ENGINE: EngineKind = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "google" : "gl";
+/** `?map=google|gl|leaflet` picks the first engine to try (for testing); failures still fall down the chain. */
+const pickEngine = (): EngineKind => {
+  const q = new URLSearchParams(window.location.search).get("map");
+  return q === "leaflet" || q === "gl" || q === "google" ? q : DEFAULT_ENGINE;
+};
 
 export function PlacesMap(props: PlacesMapProps) {
-  const fallback = useSyncExternalStore(noop, wantsFallback, () => false);
-  return <Tour {...props} forceFallback={fallback} />;
+  const engine = useSyncExternalStore(noop, pickEngine, () => DEFAULT_ENGINE);
+  return <Tour {...props} engine={engine} />;
 }
 
 export default PlacesMap;

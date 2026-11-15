@@ -151,7 +151,43 @@ function specific(q: string, kind: PlaceKind): boolean {
 
 const RANK: Record<PlaceKind, number> = { home_area: 0, school: 1, work: 2, hangout: 3, event: 4, photo: 5, other: 6 };
 
+const US_STATES =
+  "alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming";
+const US_ABBR = "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC";
+const COUNTRY_HINTS: [string, RegExp][] = [
+  ["us", new RegExp(`\\b(united states|usa|u\\.s\\.a?\\.?|${US_STATES})\\b`, "i")],
+  // State abbreviations only in capitals after a comma ("Atlanta, GA"), so ", or" / ", in" never count.
+  ["us", new RegExp(`,\\s*(${US_ABBR})\\b`)],
+  ["gb", /\b(united kingdom|uk|england|scotland|wales|northern ireland|great britain)\b/i],
+  ["ca", /\b(canada|ontario|quebec|british columbia|alberta)\b/i],
+  ["au", /\b(australia|new south wales|queensland)\b/i],
+  ["ie", /\b(ireland|dublin)\b/i],
+  ["in", /\b(india)\b/i],
+  ["ng", /\b(nigeria|lagos)\b/i],
+  ["nz", /\b(new zealand)\b/i],
+  ["de", /\b(germany|deutschland)\b/i],
+  ["fr", /\b(france)\b/i],
+];
+
+/**
+ * The country the findings point at (ISO alpha-2, lower case), from location-ish
+ * findings only. Undefined when nothing clear: the server then biases to "us".
+ */
+export function regionHint(findings: Finding[]): string | undefined {
+  const votes = new Map<string, number>();
+  for (const f of findings) {
+    if (f.category !== "location" && f.category !== "school" && f.category !== "employer" && f.category !== "schedule") continue;
+    const text = f.value;
+    for (const [cc, re] of COUNTRY_HINTS) if (re.test(text)) votes.set(cc, (votes.get(cc) ?? 0) + (f.category === "location" ? 2 : 1));
+  }
+  let best: string | undefined;
+  let n = 0;
+  for (const [cc, v] of votes) if (v > n) [best, n] = [cc, v];
+  return best;
+}
+
 export function extractPlaces(findings: Finding[]): PlaceCandidate[] {
+  const region = regionHint(findings);
   const raw: (PlaceCandidate & { risk: number; timed: boolean })[] = [];
   for (const f of findings) {
     const kind = kindFor(f);
@@ -171,7 +207,7 @@ export function extractPlaces(findings: Finding[]): PlaceCandidate[] {
     // One home area is the point; several just repeat the same city.
     if (c.kind === "home_area" && homes++ >= 2) continue;
     seen.add(key);
-    out.push({ findingId: c.findingId, query: c.query, kind: c.kind });
+    out.push({ findingId: c.findingId, query: c.query, kind: c.kind, ...(region ? { region } : {}) });
     if (out.length >= MAX_PLACES) break;
   }
   return out;
@@ -272,6 +308,67 @@ function hash(s: string): number {
   return (h >>> 0) / 4294967295;
 }
 
+/** Metres between two points (haversine). */
+export function distanceM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+export const DUPLICATE_RADIUS_M = 1000;
+const PRECISION_SCORE = { venue: 2, area: 1, city: 0 } as const;
+
+/** Higher is better-sourced: a confident finding, an exact venue, a known time, then risk. */
+function sourceScore(s: TourStop): number {
+  return (
+    s.finding.confidence * 100 +
+    (s.place ? PRECISION_SCORE[s.place.precision] * 10 : 0) +
+    (s.schedule ? 5 : 0) +
+    s.finding.riskWeight * 0.1
+  );
+}
+
+function sameSpot(a: TourStop, b: TourStop): boolean {
+  if (!a.place || !b.place) return false;
+  // Identical Google place: one stop, unless both are only a whole town reached from different kinds
+  // (a workplace found only as "Atlanta" is still a separate fact from the home area).
+  if (a.place.placeId && a.place.placeId === b.place.placeId && (a.kind === b.kind || a.place.precision !== "city")) return true;
+  // Real coordinates, not the masked jitter.
+  return a.kind === b.kind && distanceM(a.place, b.place) <= DUPLICATE_RADIUS_M;
+}
+
+/**
+ * One stop per real place: same kind within ~1 km, or the same Google place,
+ * keeps only the better-sourced one. At most one home area. Stops still
+ * geocoding are kept (they may yet resolve to somewhere new), except extra
+ * home areas once one is found. Input order is preserved for the survivors.
+ */
+export function dedupeStops(stops: TourStop[]): TourStop[] {
+  const drop = new Set<string>();
+  const found = stops.filter((s) => s.status === "found");
+  for (let i = 0; i < found.length; i++) {
+    const a = found[i];
+    if (drop.has(a.id)) continue;
+    for (let j = i + 1; j < found.length; j++) {
+      const b = found[j];
+      if (drop.has(b.id) || !sameSpot(a, b)) continue;
+      const loser = sourceScore(b) > sourceScore(a) ? a : b;
+      drop.add(loser.id);
+      if (loser === a) break;
+    }
+  }
+  const homes = stops.filter((s) => s.kind === "home_area" && !drop.has(s.id));
+  const foundHomes = homes.filter((s) => s.status === "found");
+  const keepHome = foundHomes.length
+    ? foundHomes.reduce((best, s) => (sourceScore(s) > sourceScore(best) ? s : best))
+    : homes.find((s) => s.status === "pending") ?? homes[0];
+  for (const h of homes) if (h !== keepHome) drop.add(h.id);
+  return stops.filter((s) => !drop.has(s.id));
+}
+
 /** Home area, school, work, then the week's routine in day/time order, then everything else. */
 export function buildTour(
   candidates: PlaceCandidate[],
@@ -305,7 +402,7 @@ export function buildTour(
     });
   }
   const group = (s: TourStop) => (s.kind === "home_area" ? 0 : s.kind === "school" ? 1 : s.kind === "work" ? 2 : s.schedule ? 3 : 4);
-  return stops
+  return dedupeStops(stops)
     .map((s, i) => ({ s, i }))
     .sort((a, b) => group(a.s) - group(b.s) || (a.s.schedule?.order ?? 0) - (b.s.schedule?.order ?? 0) || RANK[a.s.kind] - RANK[b.s.kind] || a.i - b.i)
     .map(({ s }) => s);

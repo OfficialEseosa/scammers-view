@@ -1,6 +1,7 @@
 import type { GeocodedPlace, PlaceCandidate, Precision } from "./types";
 
-// Nominatim usage policy: max 1 req/s, identifying User-Agent, cache results.
+// Fallback geocoder (no key). Nominatim usage policy: max 1 req/s, identifying User-Agent, cache results.
+// Caching lives in ./geocode.ts; this module only throttles and maps.
 const ENDPOINT = "https://nominatim.openstreetmap.org/search";
 const USER_AGENT = "ScammersViewHackathon/0.1 (privacy awareness demo)";
 const MIN_GAP_MS = 1100;
@@ -16,11 +17,9 @@ interface NominatimHit {
 }
 
 const g = globalThis as unknown as {
-  __svGeoCache?: Map<string, GeocodedPlace | null>;
   __svGeoChain?: Promise<unknown>;
   __svGeoLast?: number;
 };
-const cache = (g.__svGeoCache ??= new Map());
 
 /** Serialises all upstream calls and spaces them >= 1.1s apart. */
 function throttled<T>(fn: () => Promise<T>): Promise<T> {
@@ -43,7 +42,7 @@ async function search(q: string, extra = ""): Promise<NominatimHit | null> {
   const res = await throttled(() =>
     fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(8000) }),
   );
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(`nominatim ${res.status}`);
   const hits = (await res.json()) as NominatimHit[];
   return hits[0] ?? null;
 }
@@ -66,7 +65,8 @@ function cityName(h: NominatimHit): string | null {
   return [city, a.state, a.country].filter(Boolean).join(", ");
 }
 
-async function geocodeOne(c: PlaceCandidate): Promise<GeocodedPlace | null> {
+/** Uncached. Throws on upstream errors (so they are not cached as misses); null on a real "no match". */
+export async function geocodeNominatim(c: PlaceCandidate): Promise<GeocodedPlace | null> {
   if (c.kind === "home_area") {
     // Never pin a home address: resolve to a city centroid only.
     const parts = c.query.split(",").map((s) => s.trim()).filter(Boolean);
@@ -83,8 +83,9 @@ async function geocodeOne(c: PlaceCandidate): Promise<GeocodedPlace | null> {
     const name = cityName(hit);
     return {
       findingId: c.findingId,
-      lat: exact ? Number(hit.lat) : Math.round(Number(hit.lat) * 50) / 50,
-      lng: exact ? Number(hit.lon) : Math.round(Number(hit.lon) * 50) / 50,
+      // Not a city centroid: coarsen to a ~5 km grid so no street is implied.
+      lat: exact ? Number(hit.lat) : Math.round(Number(hit.lat) * 20) / 20,
+      lng: exact ? Number(hit.lon) : Math.round(Number(hit.lon) * 20) / 20,
       displayName: name ?? hit.display_name.split(",").slice(-3).join(",").trim(),
       precision: "city",
       approximate: true,
@@ -100,19 +101,4 @@ async function geocodeOne(c: PlaceCandidate): Promise<GeocodedPlace | null> {
     precision: precisionOf(hit),
     approximate: false,
   };
-}
-
-export async function geocode(c: PlaceCandidate): Promise<GeocodedPlace | null> {
-  const key = `${c.kind === "home_area" ? "home" : "pin"}:${c.query.toLowerCase()}`;
-  if (cache.has(key)) {
-    const hit = cache.get(key);
-    return hit ? { ...hit, findingId: c.findingId } : null;
-  }
-  try {
-    const result = await geocodeOne(c);
-    cache.set(key, result);
-    return result;
-  } catch {
-    return null; // transient failures are not cached
-  }
 }

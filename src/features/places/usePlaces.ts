@@ -7,14 +7,14 @@ import type { GeocodedPlace, PlaceCandidate } from "@/lib/places/types";
 
 /**
  * Geocodes the candidates through POST /api/places/geocode.
- * One candidate per request so pins drop in as each resolves, two in flight
- * at a time so the rest of the page keeps its connections (the server queues
- * Nominatim at 1 request/second anyway). Results are cached for the tab.
+ * One candidate per request so pins drop in as each resolves, four in flight
+ * at a time (Google has no per-second rule; the server still queues any
+ * Nominatim fallback at 1 request/second). Results are cached for the tab.
  */
 
-const CONCURRENCY = 2;
+const CONCURRENCY = 4;
 const clientCache = new Map<string, GeocodedPlace | null>();
-const keyOf = (c: PlaceCandidate) => `${c.kind === "home_area" ? "home" : "pin"}:${c.query.toLowerCase()}`;
+const keyOf = (c: PlaceCandidate) => `${c.kind === "home_area" ? "home" : "pin"}:${c.region ?? "-"}:${c.query.toLowerCase()}`;
 
 const EMPTY_PLACES: Record<string, GeocodedPlace> = {};
 const EMPTY_MISSING: Record<string, true> = {};
@@ -32,7 +32,7 @@ export interface PlacesState {
 export function usePlaces(findings: Finding[], masked: boolean): PlacesState {
   const candidates = useMemo(() => extractPlaces(findings), [findings]);
   const byId = useMemo(() => new Map(findings.map((f) => [f.id, f])), [findings]);
-  const candKey = candidates.map((c) => `${c.findingId}|${c.kind}|${c.query}`).join("\n");
+  const candKey = candidates.map((c) => `${c.findingId}|${c.kind}|${c.region ?? ""}|${c.query}`).join("\n");
 
   const [res, setRes] = useState<Res>({ key: "", places: {}, missing: {}, auth: false });
   const fresh = res.key === candKey;
