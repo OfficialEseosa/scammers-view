@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   ScanEvent,
   type AttackChain,
@@ -42,10 +42,16 @@ const initial: ScanState = {
   cachedAt: null,
 };
 
-type Action = { type: "event"; event: ScanEvent } | { type: "fail"; message: string } | { type: "reset" } | { type: "cached"; at: number; sources: ScanState["sources"] };
+type Action =
+  | { type: "event"; event: ScanEvent }
+  | { type: "fail"; message: string }
+  | { type: "reset" }
+  | { type: "hydrate"; state: ScanState }
+  | { type: "cached"; at: number; sources: ScanState["sources"] };
 
 function reducer(state: ScanState, action: Action): ScanState {
   if (action.type === "reset") return initial;
+  if (action.type === "hydrate") return action.state;
   if (action.type === "cached") return { ...state, cachedAt: action.at, sources: action.sources, message: "Loaded from this device" };
   if (action.type === "fail") {
     if (state.phase === "done") return state;
@@ -84,10 +90,16 @@ function reducer(state: ScanState, action: Action): ScanState {
  * Streams ScanEvents from GET /api/scan (SSE), or a built-in fictional sequence when `mock` is set.
  * Every event is validated with zod; malformed events are dropped.
  * Nothing starts until `enabled` is true; flipping it back to false closes the stream and wipes the state.
+ * Pass a finished `restore` snapshot to show prior results after a refresh without re-running the scan.
  */
-export function useScanStream(mock: boolean, enabled = true, owner = "") {
-  const [state, dispatch] = useReducer(reducer, initial);
+export function useScanStream(mock: boolean, enabled = true, restore: ScanState | null = null, owner = "") {
+  const [state, dispatch] = useReducer(reducer, restore?.phase === "done" ? restore : initial);
   const [run, setRun] = useState(0);
+  const restoredDone = restore?.phase === "done";
+  const restoreRef = useRef(restore);
+  useEffect(() => {
+    restoreRef.current = restore;
+  }, [restore]);
 
   // A finished real scan is remembered on this device, so reopening costs nothing.
   useEffect(() => {
@@ -96,6 +108,11 @@ export function useScanStream(mock: boolean, enabled = true, owner = "") {
   }, [mock, owner, state.phase, state.cachedAt, state.findings, state.chains, state.score, state.sources]);
 
   useEffect(() => {
+    if (restoredDone && run === 0) {
+      const snap = restoreRef.current;
+      if (snap) dispatch({ type: "hydrate", state: snap });
+      return;
+    }
     dispatch({ type: "reset" });
     if (!enabled) return;
     let closed = false;
@@ -163,7 +180,7 @@ export function useScanStream(mock: boolean, enabled = true, owner = "") {
       closed = true;
       cleanups.forEach((c) => c());
     };
-  }, [mock, run, enabled, owner]);
+  }, [mock, run, enabled, restoredDone, owner]);
 
   const restart = useCallback(() => setRun((n) => n + 1), []);
   return { ...state, restart };

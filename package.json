@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit -p .",
+    "test": "tsx --test \"src/lib/**/*.test.ts\" \"src/lib/**/*.test.mjs\"",
     "test:scan": "tsx --test src/lib/scan/scan.test.mjs",
     "test:llm": "tsx --test src/lib/llm/gemini.test.ts",
     "test:voice-exposure": "tsx --test src/lib/voice-exposure/voice-exposure.test.ts",
@@ -15,7 +17,12 @@
     "test:check": "tsx --test src/lib/check/check.test.ts",
     "test:reputation": "tsx --test src/lib/reputation/reputation.test.ts",
     "test:gmail": "tsx --test src/lib/gmail/gmail.test.ts",
+    "test:cleanup": "tsx --test src/lib/cleanup/cleanup.test.ts",
+    "ci": "npm run lint && npm run typecheck && npm test",
     "index:typesense": "tsx scripts/index-typesense.ts"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",
@@ -32,6 +39,7 @@
     "motion": "^14.14.0",
     "next": "16.4.6",
     "next-auth": "^5.0.0-beta.32",
+    "playwright-core": "^1.65.1",
     "qrcode": "^1.5.4",
     "qrcode-generator": "^2.0.4",
     "react": "19.3.0",

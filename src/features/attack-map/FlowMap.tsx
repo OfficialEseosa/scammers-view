@@ -367,11 +367,11 @@ function FlowMapInner({ findings, chains, score, subjectName, masked, removedFin
               type="button"
               role="tab"
               aria-selected={chainId === c.chain.id}
-              className={`fm-chip${chainId === c.chain.id ? " fm-chip-on" : ""}${c.broken ? " fm-chip-cut" : ""}${chainId === null && c === (model.chains.find((x) => !x.broken) ?? model.chains[0]) ? " am-rail-play" : ""}`}
+              className={`fm-chip${chainId === c.chain.id ? " fm-chip-on" : ""}${c.broken ? " fm-chip-cut" : ""}`}
               onClick={() => pick(chainId === c.chain.id ? null : c.chain.id, chainId !== c.chain.id)}
             >
               <span className="fm-chip-n">{i + 1}</span>
-              {c.chain.target}
+              <span className="fm-chip-label">{c.chain.target}</span>
               <span className="fm-chip-meta">{c.broken ? "cut" : `${c.steps.length} steps`}</span>
             </button>
           ))}

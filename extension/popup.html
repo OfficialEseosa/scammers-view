@@ -5,12 +5,22 @@
     <title>Scammer's View</title>
     <link rel="stylesheet" href="ui.css" />
     <style>
-      body { width: 340px; }
+      body { width: 360px; }
+      #cleanup-log { margin: 0; padding-left: 1.1rem; }
+      #cleanup-log li { margin-bottom: 4px; }
     </style>
   </head>
   <body>
     <h1><img src="icons/32.png" alt="" /> Scammer’s View</h1>
     <div class="stack">
+      <section id="cleanup" class="card" hidden aria-live="polite">
+        <p class="muted small">Cleanup agent · live steps</p>
+        <h2 id="cleanup-site">Working…</h2>
+        <p id="cleanup-text" class="small"></p>
+        <ol id="cleanup-log" class="small muted"></ol>
+        <button id="open-cleanup-panel" type="button" class="secondary">Open as side panel</button>
+      </section>
+
       <button id="open-panel" type="button">Check a message</button>
       <p class="muted small">Tip: select text or a link on any page, right-click, and choose “Check with Scammer’s View”.</p>
 

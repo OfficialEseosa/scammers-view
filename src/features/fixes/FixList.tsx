@@ -14,6 +14,8 @@ import { planFixes } from "@/lib/fixes/plan";
 import { computeExposure } from "@/lib/fixes/score";
 import type { Fix } from "@/lib/fixes/types";
 import { mailtoHref } from "@/lib/fixes/optout";
+import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
+import { useSession } from "@/state/session";
 
 export interface FixListProps {
   findings: Finding[];
@@ -27,6 +29,7 @@ export interface FixListProps {
 }
 
 export function FixList({ findings, chains, score, masked, onRemovedChange }: FixListProps) {
+  const { subjectName, subjectEmail } = useSession();
   const anchor = score?.score;
   const fixes = useMemo(() => planFixes(findings, chains, anchor), [findings, chains, anchor]);
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
@@ -106,6 +109,8 @@ export function FixList({ findings, chains, score, masked, onRemovedChange }: Fi
               chains={chains}
               masked={masked}
               afterAbove={i > 0}
+              subjectName={subjectName}
+              subjectEmail={subjectEmail}
             />
           </li>
         ))}
@@ -126,6 +131,8 @@ export function FixList({ findings, chains, score, masked, onRemovedChange }: Fi
                   chains={chains}
                   masked={masked}
                   afterAbove
+                  subjectName={subjectName}
+                  subjectEmail={subjectEmail}
                 />
               </li>
             ))}
@@ -224,12 +231,27 @@ interface CardProps {
   chains: AttackChain[];
   masked: boolean;
   afterAbove: boolean;
+  subjectName: string;
+  subjectEmail: string;
 }
 
 function FixCard(p: CardProps) {
   const { fix, featured, done } = p;
+  const agent = (
+    <CleanupPanel
+      fix={fix}
+      findings={p.findings}
+      name={p.subjectName}
+      email={p.subjectEmail}
+      onDone={() => {
+        if (!done) p.onToggle();
+      }}
+    />
+  );
   const body = (
     <>
+      {/* Agent first when available — manual steps stay as a backup checklist. */}
+      {agent}
       <ol className="mt-5 grid list-decimal gap-2 pl-6 text-lg leading-snug marker:font-display marker:text-muted">
         {fix.steps.map((s, i) => (
           <li key={i}>{s}</li>

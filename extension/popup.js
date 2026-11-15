@@ -9,10 +9,39 @@ const settings = await getSettings();
 gmail.checked = settings.gmail && (await chrome.permissions.contains({ origins: [GMAIL_ORIGIN] }));
 appUrl.value = settings.appUrl;
 
-// Looked up ahead of time: sidePanel.open must run directly inside the click.
 const { id: windowId } = await chrome.windows.getCurrent();
-document.getElementById("open-panel").addEventListener("click", () => {
-  void chrome.sidePanel.open({ windowId }).then(() => window.close());
+
+function openSidePanel() {
+  void chrome.sidePanel.open({ windowId }).then(() => window.close()).catch(() => {});
+}
+
+document.getElementById("open-panel").addEventListener("click", openSidePanel);
+document.getElementById("open-cleanup-panel")?.addEventListener("click", openSidePanel);
+
+function renderCleanup(live) {
+  const box = document.getElementById("cleanup");
+  const site = document.getElementById("cleanup-site");
+  const text = document.getElementById("cleanup-text");
+  const log = document.getElementById("cleanup-log");
+  if (!box || !site || !text || !log) return;
+  if (!live || (!live.running && !live.text)) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  site.textContent = live.site ? `Cleanup · ${live.site}` : "Cleanup agent";
+  text.textContent = live.text || (live.running ? "Working…" : "");
+  log.replaceChildren();
+  for (const line of Array.isArray(live.log) ? live.log.slice(-8) : []) {
+    const li = document.createElement("li");
+    li.textContent = String(line);
+    log.append(li);
+  }
+}
+
+chrome.storage.session.get("cleanupLive").then(({ cleanupLive }) => renderCleanup(cleanupLive));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "session" && changes.cleanupLive) renderCleanup(changes.cleanupLive.newValue);
 });
 
 gmail.addEventListener("change", async () => {
@@ -47,5 +76,23 @@ document.getElementById("app").addEventListener("submit", async (e) => {
     return;
   }
   await chrome.storage.sync.set({ appUrl: url.origin });
-  status.textContent = `Saved. Checks go to ${url.origin}.`;
+  const builtIn = url.origin === "http://localhost:3000" || url.origin === "http://127.0.0.1:3000";
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: ["sv-bridge"] }).catch(() => {});
+    if (!builtIn) {
+      await chrome.scripting.registerContentScripts([
+        {
+          id: "sv-bridge",
+          matches: [`${url.origin}/*`],
+          js: ["bridge.js"],
+          runAt: "document_start",
+          persistAcrossSessions: true,
+        },
+      ]);
+    }
+  } catch {
+    status.textContent = `Saved checks for ${url.origin}, but the page bridge couldn't be registered. Reload the extension and try again.`;
+    return;
+  }
+  status.textContent = `Saved. Reload any open app tab so the extension can connect (${url.origin}).`;
 });

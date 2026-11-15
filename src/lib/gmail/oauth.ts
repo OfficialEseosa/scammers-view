@@ -5,6 +5,14 @@
  */
 
 export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+
+/** "inbox": the one-time inbox check (read only). "cleanup": read confirmation emails and send approved removal emails. */
+export type GmailPurpose = "inbox" | "cleanup";
+export const PURPOSE_SCOPES: Record<GmailPurpose, string[]> = {
+  inbox: [GMAIL_SCOPE],
+  cleanup: [GMAIL_SCOPE, GMAIL_SEND_SCOPE],
+};
 export const STATE_COOKIE = "sv_gmail_state";
 export const CALLBACK_PATH = "/api/gmail/callback";
 
@@ -28,12 +36,12 @@ export function appOrigin(request: Request): string {
   return host ? `${proto}://${host}` : url.origin;
 }
 
-export function authorizeUrl(origin: string, state: string, loginHint: string): string {
+export function authorizeUrl(origin: string, state: string, loginHint: string, scopes: string[] = [GMAIL_SCOPE]): string {
   const q = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID ?? "",
     redirect_uri: `${origin}${CALLBACK_PATH}`,
     response_type: "code",
-    scope: GMAIL_SCOPE,
+    scope: scopes.join(" "),
     // Online access: no refresh token, so nothing could be used later.
     access_type: "online",
     include_granted_scopes: "false",
@@ -44,7 +52,7 @@ export function authorizeUrl(origin: string, state: string, loginHint: string): 
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
 }
 
-export async function exchangeCode(code: string, origin: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+export async function exchangeCode(code: string, origin: string, fetchImpl: typeof fetch = fetch, scopes: string[] = [GMAIL_SCOPE]): Promise<string> {
   const res = await fetchImpl("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -60,7 +68,8 @@ export async function exchangeCode(code: string, origin: string, fetchImpl: type
   if (!res.ok) throw new Error(`Token exchange failed (${res.status})`);
   const data = (await res.json()) as { access_token?: string; scope?: string };
   if (!data.access_token) throw new Error("No access token");
-  if (!data.scope?.split(" ").includes(GMAIL_SCOPE)) {
+  const granted = data.scope?.split(" ") ?? [];
+  if (!scopes.every((s) => granted.includes(s))) {
     await revokeToken(data.access_token, fetchImpl);
     throw new Error("Gmail access was not granted");
   }
