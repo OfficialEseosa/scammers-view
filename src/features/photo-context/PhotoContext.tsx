@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Finding } from "@/lib/types";
 import type { PhotoResponse } from "@/lib/vision/schema";
 import { PHOTOS_PER_SCAN } from "@/lib/vision/limits";
@@ -31,6 +31,15 @@ export function PhotoContext({ photos, masked = false, onFindings, fixture, show
     [fixture],
   );
   const v = useVision(photos, run, { cap: PHOTOS_PER_SCAN, onFindings });
+  // The dashboard's "Analyze pictures" button starts the same run as "Analyse all".
+  const { canAnalyseAll, busy, analyseAll } = v;
+  useEffect(() => {
+    const start = () => {
+      if (canAnalyseAll && !busy) void analyseAll();
+    };
+    window.addEventListener("sv:analyse-photos", start);
+    return () => window.removeEventListener("sv:analyse-photos", start);
+  }, [canAnalyseAll, busy, analyseAll]);
   if (!photos.length) return null;
 
   return (

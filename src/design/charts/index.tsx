@@ -57,6 +57,7 @@ const CATEGORY_NAME: Record<FindingCategory, string> = {
   interest: "Interests",
   other: "Other",
   video: "Videos",
+  connection: "Connections",
 };
 
 const ink: ChartConfig = { v: { label: "Value", color: "var(--text)" } };

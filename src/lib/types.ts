@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const FindingCategory = z.enum([
   "school", "employer", "email", "phone", "location", "relative", "pet",
-  "birthday", "handle", "photo", "schedule", "interest", "other", "video",
+  "birthday", "handle", "photo", "schedule", "interest", "other", "video", "connection",
 ]);
 export type FindingCategory = z.infer<typeof FindingCategory>;
 

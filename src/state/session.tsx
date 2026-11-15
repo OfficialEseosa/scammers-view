@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import { useRouter } from "next/navigation";
 import type { ExposureScore, Finding } from "@/lib/types";
 import { useScanStream } from "@/hooks/useScanStream";
+import { clearScanCache } from "@/hooks/scanCache";
 import { excludeNotMe } from "@/state/notMe";
 import { usePresentationMode } from "@/hooks/usePresentationMode";
 import { clearFaceData } from "@/features/face";
@@ -107,7 +108,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
   const [notMe, setNotMe] = useState<Finding[]>(NO_FINDINGS);
   const [notMeUndo, setNotMeUndo] = useState<{ ids: string[]; at: number } | null>(null);
 
-  const raw = useScanStream(mock, stage === "live" || stage === "results");
+  const raw = useScanStream(mock, stage === "live" || stage === "results", subjectName);
   const notMeIds = useMemo<ReadonlySet<string>>(() => new Set(notMe.map((f) => f.id)), [notMe]);
   const kept = useMemo(() => excludeNotMe(raw.findings, raw.chains, raw.score, notMeIds), [raw.findings, raw.chains, raw.score, notMeIds]);
   const scan = useMemo<Scan>(() => ({ ...raw, ...kept }), [raw, kept]);
@@ -160,6 +161,7 @@ export function SessionProvider({ mock, subjectName, children }: { mock: boolean
   }, [scan.score, scan.findings, scan.chains, removed]);
 
   const endSession = useCallback(() => {
+    clearScanCache();
     clearFaceData();
     clearVoiceData();
     disposeVoiceEngine();

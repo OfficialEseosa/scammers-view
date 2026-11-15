@@ -21,7 +21,7 @@ const Extraction = z.object({
   findings: z.array(
     z.object({
       // "video" findings come only from the social module (they need a media URL).
-      category: FindingCategory.exclude(["video"]),
+      category: FindingCategory.exclude(["video", "connection"]),
       label: z.string(),
       value: z.string(),
       sourceType: SourceType,

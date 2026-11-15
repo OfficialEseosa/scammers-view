@@ -1,0 +1,239 @@
+/* Kill switch screen: the logo, huge, tearing apart. Black and white with a red slice. */
+.ks-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  text-align: center;
+}
+.ks-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.045) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+  animation: ks-roll 7s linear infinite;
+}
+.ks-root::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22vh;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.07), transparent);
+  pointer-events: none;
+  animation: ks-sweep 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes ks-roll {
+  to {
+    background-position: 0 240px;
+  }
+}
+@keyframes ks-sweep {
+  from {
+    top: -25vh;
+  }
+  to {
+    top: 105vh;
+  }
+}
+
+.ks-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 4vh, 44px);
+  padding: 24px;
+}
+.ks-logo {
+  position: relative;
+  width: min(62vmin, 520px);
+  aspect-ratio: 1;
+}
+.ks-logo > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ks-logo .ks-a {
+  color: #ff3b30;
+  mix-blend-mode: screen;
+  animation: ks-tear-a 2.6s steps(1) infinite;
+}
+.ks-logo .ks-b {
+  color: #fff;
+  opacity: 0.55;
+  animation: ks-tear-b 3.1s steps(1) infinite;
+}
+.ks-logo .ks-main {
+  color: #fff;
+  animation: ks-jolt 4s steps(1) infinite;
+}
+@keyframes ks-tear-a {
+  0%,
+  100% {
+    clip-path: inset(0 0 100% 0);
+    transform: none;
+  }
+  8% {
+    clip-path: inset(12% 0 70% 0);
+    transform: translate(-3.5%, 0);
+  }
+  11% {
+    clip-path: inset(58% 0 22% 0);
+    transform: translate(4%, 0);
+  }
+  14% {
+    clip-path: inset(0 0 100% 0);
+  }
+  46% {
+    clip-path: inset(34% 0 52% 0);
+    transform: translate(5%, 1%) skewX(-8deg);
+  }
+  49% {
+    clip-path: inset(76% 0 6% 0);
+    transform: translate(-4%, 0);
+  }
+  52% {
+    clip-path: inset(0 0 100% 0);
+  }
+  81% {
+    clip-path: inset(4% 0 84% 0);
+    transform: translate(3%, 0);
+  }
+  84% {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes ks-tear-b {
+  0%,
+  100% {
+    clip-path: inset(0 0 100% 0);
+    transform: none;
+  }
+  21% {
+    clip-path: inset(44% 0 40% 0);
+    transform: translate(6%, 0);
+  }
+  24% {
+    clip-path: inset(18% 0 66% 0);
+    transform: translate(-5%, 0) skewX(10deg);
+  }
+  27% {
+    clip-path: inset(0 0 100% 0);
+  }
+  63% {
+    clip-path: inset(66% 0 18% 0);
+    transform: translate(-6%, 0);
+  }
+  66% {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes ks-jolt {
+  0%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+  8% {
+    transform: translate(1.2%, 0);
+  }
+  11% {
+    transform: translate(-0.8%, 0.4%);
+  }
+  14% {
+    transform: none;
+  }
+  46% {
+    transform: translate(-1.4%, 0) skewX(2deg);
+    opacity: 0.86;
+  }
+  52% {
+    transform: none;
+    opacity: 1;
+  }
+  82% {
+    opacity: 0.4;
+  }
+  83% {
+    opacity: 1;
+  }
+}
+
+.ks-title {
+  position: relative;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.9rem, 6.4vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+}
+.ks-title::before,
+.ks-title::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ks-title::before {
+  color: #ff3b30;
+  animation: ks-tear-a 2.6s steps(1) infinite;
+}
+.ks-title::after {
+  color: #fff;
+  opacity: 0.6;
+  animation: ks-tear-b 3.1s steps(1) infinite;
+}
+.ks-sub {
+  color: rgb(255 255 255 / 0.62);
+  font-size: clamp(1rem, 2.2vw, 1.375rem);
+}
+.ks-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border: 1px solid #ff3b30;
+  border-radius: 999px;
+  color: #ff3b30;
+  font-family: var(--font-evidence), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+}
+.ks-tag::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff3b30;
+  animation: ks-blink 1.1s steps(2) infinite;
+}
+@keyframes ks-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ks-root::before,
+  .ks-root::after,
+  .ks-logo *,
+  .ks-title::before,
+  .ks-title::after,
+  .ks-tag::before {
+    animation: none;
+  }
+  .ks-logo .ks-a,
+  .ks-logo .ks-b,
+  .ks-title::before,
+  .ks-title::after {
+    display: none;
+  }
+}

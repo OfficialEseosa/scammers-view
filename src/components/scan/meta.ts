@@ -44,6 +44,7 @@ export const CATEGORY_LABEL: Record<FindingCategory, string> = {
   interest: "Interest",
   other: "Other",
   video: "Video",
+  connection: "Connection",
 };
 
 export const ANCHOR_LABEL: Record<IdentityAnchor, string> = {

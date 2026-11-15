@@ -38,6 +38,23 @@ export function FaceBadge() {
   );
 }
 
+/** Shown when results came from this device: when they were scanned, and a way to scan again. */
+export function SavedScanChip() {
+  const { scan } = useSession();
+  const [now] = useState(() => Date.now());
+  if (!scan.cachedAt) return null;
+  const mins = Math.max(0, Math.round((now - scan.cachedAt) / 60000));
+  const age = mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : mins < 1440 ? `${Math.round(mins / 60)} h ago` : `${Math.round(mins / 1440)} d ago`;
+  return (
+    <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-edge pl-2.5 pr-1 text-sm max-md:hidden">
+      <span className="text-muted">Scanned {age}</span>
+      <button type="button" className="sv-press min-h-7 rounded-full border border-edge-strong px-2.5 font-medium hover:border-fg" onClick={scan.restart}>
+        Rescan
+      </button>
+    </span>
+  );
+}
+
 export function SessionBar() {
   const { subjectName, mock, masked, endSession, ending } = useSession();
   const [confirming, setConfirming] = useState(false);
@@ -53,6 +70,7 @@ export function SessionBar() {
           {mock && <span className="rounded-chip border border-edge px-1.5 py-0.5 text-sm">Demo data</span>}
         </p>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
+          <SavedScanChip />
           <FaceBadge />
           <PresentationToggle />
           <ThemeToggle />

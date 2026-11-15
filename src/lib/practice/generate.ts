@@ -101,6 +101,7 @@ const HOW: Record<Finding["category"], string> = {
   interest: "Your interests let them tailor a too-good-to-be-true offer.",
   other: "Any personal detail makes a stranger sound like someone who knows you.",
   video: "Public videos of you speaking are enough to clone your voice for a fake emergency call.",
+  connection: "The people you follow are public, so a scammer can pose as one of them or reach you through them.",
 };
 
 const CLASSIC: Record<PracticeScenario, { category: TellsOnly["tells"][number]["category"]; explanation: string }[]> = {

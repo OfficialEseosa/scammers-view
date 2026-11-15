@@ -128,6 +128,8 @@ export function exactKey(f: Comparable): string {
   if (f.category === "photo") return `photo|${canonicalUrl(f.imageUrl ?? f.value)}`;
   // One finding per public video post (captions can repeat across videos).
   if (f.category === "video") return `video|${canonicalUrl(f.sourceUrl ?? f.value)}`;
+  // One finding per followed account per platform.
+  if (f.category === "connection") return `connection|${f.sourceType}|${f.label.toLowerCase()}|${f.value.trim().toLowerCase()}`;
   if (f.category === "email") return `email|${f.value.trim().toLowerCase()}`;
   if (f.category === "handle") {
     const h = handleKey(f);
@@ -146,6 +148,7 @@ export function classify(a: Comparable, b: Comparable): Verdict {
   switch (a.category) {
     case "photo":
     case "video":
+    case "connection":
     case "email":
       return "new";
     case "phone": {

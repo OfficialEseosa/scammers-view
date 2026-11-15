@@ -94,7 +94,7 @@ function column(count: number, x: number, gap: number): { x: number; y: number }
   return Array.from({ length: count }, (_, i) => ({ x, y: top + i * gap }));
 }
 
-export function FlowMap(props: AttackMapProps) {
+export function FlowMap(props: AttackMapProps & { autoplay?: boolean }) {
   return (
     <ReactFlowProvider>
       <FlowMapInner {...props} />
@@ -102,12 +102,13 @@ export function FlowMap(props: AttackMapProps) {
   );
 }
 
-function FlowMapInner({ findings, chains, score, subjectName, masked, removedFindingIds = EMPTY, className, compact = false }: AttackMapProps) {
+function FlowMapInner({ findings, chains, score, subjectName, masked, removedFindingIds = EMPTY, className, compact = false, autoplay = false }: AttackMapProps & { autoplay?: boolean }) {
   const removed = useMemo(() => new Set(removedFindingIds), [removedFindingIds]);
   const model = useMemo(() => buildModel(findings, chains, removed), [findings, chains, removed]);
-  const [chainId, setChainId] = useState<string | null>(null);
+  // Opened from the 3D view: start on the first way in that is still open.
+  const [chainId, setChainId] = useState<string | null>(() => (autoplay ? ((chains.find((c) => !c.steps.some((s) => s.findingIds.some((id) => removedFindingIds.includes(id)))) ?? chains[0])?.id ?? null) : null));
   const [step, setStep] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(autoplay);
   const [factOpen, setFactOpen] = useState<string | null>(null);
   const flow = useReactFlow();
 

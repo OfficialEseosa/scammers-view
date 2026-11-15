@@ -24,6 +24,7 @@ export const CATEGORY_ICON: Record<FindingCategory, Icon3DName> = {
   interest: "flag",
   other: "folder",
   video: "mic",
+  connection: "person",
 };
 
 export const SOURCE_ICON: Record<SourceType, Icon3DName> = {

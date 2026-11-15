@@ -18,6 +18,7 @@ import { computeExposure } from "@/lib/fixes/score";
 import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
 import { FindingFeed } from "@/components/scan/FindingFeed";
+import { QuickActions } from "@/components/session/QuickActions";
 import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
 import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
 import { AttackMapSlot, CallSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
@@ -77,6 +78,15 @@ export function Results() {
         <div className="mx-auto w-full max-w-[96rem] xl:grid xl:grid-cols-[minmax(0,46rem)_minmax(0,1fr)] xl:gap-8 xl:px-6">
           <div className="mx-auto w-full max-w-3xl min-w-0 sm:px-6 xl:mx-0 xl:px-0">
             <h1 className="sr-only">Break the chain</h1>
+            <QuickActions
+              onOpen={(t) => {
+                unlock();
+                go(t);
+              }}
+              onRescan={scan.restart}
+              photos={findings.filter((f) => f.category === "photo").length}
+              videos={findings.filter((f) => f.category === "video").length}
+            />
             <RoomJoin findings={findings} />
             <FixListSlot findings={findings} chains={scan.chains} score={scan.score} masked={masked} onRemovedChange={s.setRemovedFindingIds} />
             <FamilyNudge findings={findings} onOpen={() => go("family")} />

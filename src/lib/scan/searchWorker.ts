@@ -30,7 +30,7 @@ import { SEARCH_EXTRACT_SYSTEM, SEARCH_REPORT_SYSTEM, SEARCH_SYSTEM, subjectBloc
  */
 
 const WorkerFinding = z.object({
-  category: FindingCategory.exclude(["video"]),
+  category: FindingCategory.exclude(["video", "connection"]),
   label: z.string().describe('Short label, e.g. "Dog\'s name", "High school", "Instagram handle".'),
   value: z.string().describe('The specific fact itself, e.g. "Biscuit". Not a description.'),
   sourceType: SourceTypeEnum.describe("Kind of site the result is on."),

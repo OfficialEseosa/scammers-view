@@ -9,6 +9,7 @@ import {
   type SourceType,
 } from "@/lib/types";
 import { buildMockTimeline } from "@/hooks/mockScan";
+import { loadScanCache, saveScanCache } from "@/hooks/scanCache";
 
 export type ScanPhase = "connecting" | "running" | "done" | "error";
 
@@ -26,6 +27,8 @@ export interface ScanState {
   score: ExposureScore | null;
   chains: AttackChain[];
   error: string | null;
+  /** Set when these results were loaded from this device instead of scanned just now. */
+  cachedAt: number | null;
 }
 
 const initial: ScanState = {
@@ -36,12 +39,14 @@ const initial: ScanState = {
   score: null,
   chains: [],
   error: null,
+  cachedAt: null,
 };
 
-type Action = { type: "event"; event: ScanEvent } | { type: "fail"; message: string } | { type: "reset" };
+type Action = { type: "event"; event: ScanEvent } | { type: "fail"; message: string } | { type: "reset" } | { type: "cached"; at: number; sources: ScanState["sources"] };
 
 function reducer(state: ScanState, action: Action): ScanState {
   if (action.type === "reset") return initial;
+  if (action.type === "cached") return { ...state, cachedAt: action.at, sources: action.sources, message: "Loaded from this device" };
   if (action.type === "fail") {
     if (state.phase === "done") return state;
     return { ...state, phase: "error", error: action.message };
@@ -80,9 +85,15 @@ function reducer(state: ScanState, action: Action): ScanState {
  * Every event is validated with zod; malformed events are dropped.
  * Nothing starts until `enabled` is true; flipping it back to false closes the stream and wipes the state.
  */
-export function useScanStream(mock: boolean, enabled = true) {
+export function useScanStream(mock: boolean, enabled = true, owner = "") {
   const [state, dispatch] = useReducer(reducer, initial);
   const [run, setRun] = useState(0);
+
+  // A finished real scan is remembered on this device, so reopening costs nothing.
+  useEffect(() => {
+    if (mock || !owner || state.phase !== "done" || state.cachedAt !== null) return;
+    saveScanCache({ owner, findings: state.findings, chains: state.chains, score: state.score, sources: state.sources });
+  }, [mock, owner, state.phase, state.cachedAt, state.findings, state.chains, state.score, state.sources]);
 
   useEffect(() => {
     dispatch({ type: "reset" });
@@ -104,6 +115,25 @@ export function useScanStream(mock: boolean, enabled = true) {
         const id = window.setTimeout(() => handle(step.event), step.at);
         cleanups.push(() => window.clearTimeout(id));
       }
+    } else if (run === 0 && owner && loadScanCache(owner)) {
+      // Saved results for this person: play them back quickly instead of paying for a new scan.
+      const saved = loadScanCache(owner)!;
+      const ordered = [...saved.findings].reverse();
+      const span = Math.min(5200, 400 + ordered.length * 70);
+      const later = (at: number, fn: () => void) => {
+        const id = window.setTimeout(fn, at);
+        cleanups.push(() => window.clearTimeout(id));
+      };
+      later(60, () => dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources }));
+      ordered.forEach((finding, i) => later(120 + (span * i) / Math.max(1, ordered.length), () => handle({ type: "finding", finding })));
+      later(span + 300, () => {
+        if (saved.score) handle({ type: "score", score: saved.score });
+        saved.chains.forEach((chain) => handle({ type: "chain", chain }));
+      });
+      later(span + 500, () => {
+        handle({ type: "done" });
+        dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources });
+      });
     } else {
       // Deferred so a React dev double-mount never opens a (billable) connection twice.
       const startId = window.setTimeout(() => {
@@ -133,7 +163,7 @@ export function useScanStream(mock: boolean, enabled = true) {
       closed = true;
       cleanups.forEach((c) => c());
     };
-  }, [mock, run, enabled]);
+  }, [mock, run, enabled, owner]);
 
   const restart = useCallback(() => setRun((n) => n + 1), []);
   return { ...state, restart };

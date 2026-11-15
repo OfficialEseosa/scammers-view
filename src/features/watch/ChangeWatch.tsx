@@ -27,6 +27,7 @@ const CATEGORY_NAME: Record<FindingCategory, string> = {
   interest: "Interests",
   other: "Other",
   video: "Videos",
+  connection: "Connections",
 };
 
 const DAY = 86_400_000;

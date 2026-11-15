@@ -409,7 +409,7 @@ export class FindingCollector {
     if ((ANCHOR_RANK[raw.anchor] ?? 0) > (ANCHOR_RANK[kept.anchor] ?? 0)) kept.anchor = raw.anchor;
     kept.confidence = Math.max(kept.confidence, Math.round(raw.confidence * 100) / 100);
     kept.riskWeight = Math.max(kept.riskWeight, Math.round(raw.riskWeight * 10) / 10);
-    if (kept.category !== "photo" && kept.category !== "email" && kept.category !== "video") {
+    if (kept.category !== "photo" && kept.category !== "email" && kept.category !== "video" && kept.category !== "connection") {
       const v = richer(kept.value, raw.value);
       if (v !== kept.value) kept.value = clean(v, 300)!;
     }

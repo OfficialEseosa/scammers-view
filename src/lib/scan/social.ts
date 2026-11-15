@@ -218,6 +218,36 @@ interface Resolved {
 }
 
 const DISCOVERY_USD = 0.04;
+
+/** Who the subject follows. Read from their OWN account only; the followed accounts are never scanned. */
+const FOLLOWING_MAX = 40;
+const FOLLOWING_USD = 0.05;
+const FOLLOWING_ACTOR: Record<"instagram" | "tiktok", string> = {
+  instagram: "scraping_solutions~instagram-scraper-followers-following-no-cookies",
+  tiktok: "clockworks~tiktok-followers-scraper",
+};
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- actor outputs are untyped JSON */
+async function fetchFollowing(platform: "instagram" | "tiktok", handle: string, token: string, signal: AbortSignal): Promise<string[]> {
+  const spec = { platform, actor: FOLLOWING_ACTOR[platform] } as PlatformSpec;
+  const input =
+    platform === "instagram"
+      ? { Account: [handle], resultsLimit: FOLLOWING_MAX, dataToScrape: "Followings" }
+      : { profiles: [handle], maxFollowersPerProfile: 0, maxFollowingPerProfile: FOLLOWING_MAX };
+  const items = (await runActorInput(spec, input, token, signal, FOLLOWING_USD, FOLLOWING_MAX)) as any[];
+  const out: string[] = [];
+  for (const it of items) {
+    if (platform === "tiktok" && it?.connectionType && !/following/i.test(String(it.connectionType))) continue;
+    const name = platform === "instagram" ? it?.username : it?.authorMeta?.name;
+    const verified = platform === "instagram" ? it?.is_verified : it?.authorMeta?.verified;
+    // Verified accounts are brands and celebrities, not people you can be found through.
+    if (typeof name !== "string" || !HANDLE_RE.test(name) || verified) continue;
+    const h = name.toLowerCase();
+    if (h !== handle.toLowerCase() && !out.includes(h)) out.push(h);
+  }
+  return out.slice(0, FOLLOWING_MAX);
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 const PLATFORM_RULES: Record<"instagram" | "tiktok" | "x", { maxLen: number; allowDots: boolean }> = {
   instagram: { maxLen: 30, allowDots: true },
   tiktok: { maxLen: 24, allowDots: true },
@@ -285,7 +315,7 @@ export async function runSocialSources(
   for (const [p, v] of Object.entries(linked) as [Platform, { handle: string; finding: Finding }][]) {
     handles[p] = { handle: v.handle, anchor: v.finding.anchor, confidence: v.finding.confidence, why: v.finding.label };
   }
-  const budget = Number(process.env.SCAN_APIFY_MAX_USD) > 0 ? Number(process.env.SCAN_APIFY_MAX_USD) : 0.45;
+  const budget = Number(process.env.SCAN_APIFY_MAX_USD) > 0 ? Number(process.env.SCAN_APIFY_MAX_USD) : 0.6;
   let spent = 0;
   const specs: PlatformSpec[] = handles.bluesky ? [BLUESKY] : [];
   if (!token) {
@@ -377,6 +407,26 @@ export async function runSocialSources(
               soundTitle: v.soundTitle,
               riskWeight: videoRisk(v),
             });
+          }
+          // Who they follow is public on the account: another way a stranger can reach or impersonate them.
+          if ((spec.platform === "instagram" || spec.platform === "tiktok") && spent + FOLLOWING_USD <= budget) {
+            spent += FOLLOWING_USD;
+            try {
+              const follows = await fetchFollowing(spec.platform, handle, token!, ctx.signal);
+              if (follows.length) {
+                const where = NAMES[spec.platform];
+                add({
+                  category: "connection",
+                  label: `Who you follow on ${where}`,
+                  value: `${follows.length}${follows.length >= FOLLOWING_MAX ? "+" : ""} accounts anyone can see`,
+                  snippet: "A scammer can pose as one of these people, or reach you through them.",
+                  riskWeight: 5,
+                });
+                for (const f of follows) add({ category: "connection", label: `You follow on ${where}`, value: `@${f}`, riskWeight: 2 });
+              }
+            } catch (e) {
+              if (!ctx.signal.aborted) console.warn(`[scan:${agentId}] following failed:`, e instanceof Error ? e.message : e);
+            }
           }
           await Promise.allSettled(pending);
           // Bio + captions -> fact extraction (pets, school, hometown, birthdays, routines, named relatives).
