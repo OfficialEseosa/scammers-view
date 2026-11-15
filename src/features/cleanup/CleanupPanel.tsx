@@ -30,7 +30,37 @@ export function CleanupPanel({ fix, findings, name, email, onDone }: Props) {
   if (!help) return null;
   // Broker forms need a contact email; settings / prepare / GitHub can run without one.
   if ((help.mode === "broker-form" || help.mode === "broker-email") && !email.trim()) return null;
-  return <Panel fix={fix} findings={findings} name={name} email={email} help={help} onDone={onDone} />;
+  if (help.mode === "prepare") return <Panel fix={fix} findings={findings} name={name} email={email} help={help} onDone={onDone} />;
+  return (
+    <WithExtension>
+      <Panel fix={fix} findings={findings} name={name} email={email} help={help} onDone={onDone} />
+    </WithExtension>
+  );
+}
+
+/**
+ * The agent needs the companion Chrome extension. Without it there is nothing
+ * it can do, so the offer stays hidden and the fix shows its plain steps and link.
+ */
+let extensionSeen: Promise<boolean> | null = null;
+
+function WithExtension({ children }: { children: React.ReactNode }) {
+  const [present, setPresent] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    extensionSeen ??= detectExtension().then((v) => v !== null);
+    void extensionSeen.then((ok) => {
+      if (alive && ok) setPresent(true);
+    });
+    const stop = onExtensionHello(() => {
+      if (alive) setPresent(true);
+    });
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, []);
+  return present ? <>{children}</> : null;
 }
 
 function Panel({
