@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Brand } from "@/components/Brand";
 import { useSession } from "@/state/session";
 import { DemoScript } from "@/components/session/DemoScript";
+import { OwnerReset } from "@/components/session/OwnerReset";
 import { ThemeToggle } from "@/design/ThemeToggle";
 import { Button } from "@/design/Button";
 import { EASE_OUT } from "@/design/motion";
@@ -91,6 +92,7 @@ export function SessionBar() {
           {mock && <span className="rounded-chip border border-edge px-1.5 py-0.5 text-sm">Demo data</span>}
         </p>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
+          <OwnerReset />
           <SavedScanChip />
           <FaceBadge />
           <PresentationToggle />
