@@ -1,0 +1,184 @@
+/* Face scan loading screen. Transform and opacity only: it must keep moving while models compile. */
+
+.sl2-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  animation: sl2-in 420ms var(--ease-out, ease-out) both;
+}
+@keyframes sl2-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+.sl2-stage {
+  position: relative;
+  width: min(62%, 210px);
+  aspect-ratio: 1;
+}
+.sl2-stage > * {
+  position: absolute;
+}
+
+/* Three rings, each a different broken circle, turning at different speeds. */
+.sl2-ring {
+  inset: 0;
+  border-radius: 50%;
+  will-change: transform;
+}
+.sl2-ring-a {
+  border: 1.5px solid transparent;
+  border-top-color: var(--text);
+  border-right-color: color-mix(in srgb, var(--text) 35%, transparent);
+  animation: sl2-spin 1.5s linear infinite;
+}
+.sl2-ring-b {
+  inset: 9%;
+  border: 1px dashed color-mix(in srgb, var(--text) 45%, transparent);
+  animation: sl2-spin 9s linear infinite reverse;
+}
+.sl2-ring-c {
+  inset: -7%;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-left-color: color-mix(in srgb, var(--text) 60%, transparent);
+  animation: sl2-spin 4.2s cubic-bezier(0.6, 0.1, 0.4, 0.9) infinite;
+}
+@keyframes sl2-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A dot riding each of two orbits. */
+.sl2-orbit {
+  inset: 0;
+  animation: sl2-spin 2.6s linear infinite;
+  will-change: transform;
+}
+.sl2-orbit-b {
+  inset: 9%;
+  animation-duration: 3.8s;
+  animation-direction: reverse;
+}
+.sl2-orbit i {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--text);
+}
+.sl2-orbit-b i {
+  width: 4px;
+  height: 4px;
+  top: -2px;
+  margin-left: -2px;
+  opacity: 0.7;
+}
+
+/* The head, breathing slightly, with a line sweeping down it. */
+.sl2-head {
+  inset: 22% 27%;
+  overflow: hidden;
+  /* Clip the sweep to the head outline, not a box around it. */
+  clip-path: ellipse(38% 43% at 50% 50%);
+  color: var(--text);
+  animation: sl2-breathe 2.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes sl2-breathe {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+.sl2-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30%;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--text) 16%, transparent) 88%, color-mix(in srgb, var(--text) 85%, transparent) 98%, transparent);
+  animation: sl2-sweep 1.9s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  will-change: transform;
+}
+@keyframes sl2-sweep {
+  from {
+    transform: translateY(-110%);
+  }
+  to {
+    transform: translateY(300%);
+  }
+}
+
+.sl2-msg {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.sl2-steps {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sl2-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  transition: color 300ms ease;
+}
+.sl2-steps li[data-state="on"],
+.sl2-steps li[data-state="done"] {
+  color: var(--text);
+}
+.sl2-pip {
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  transition: background-color 300ms ease;
+}
+.sl2-steps li[data-state="done"] .sl2-pip {
+  background: currentColor;
+}
+.sl2-steps li[data-state="on"] .sl2-pip {
+  animation: sl2-blink 900ms ease-in-out infinite;
+}
+@keyframes sl2-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl2-root,
+  .sl2-ring,
+  .sl2-orbit,
+  .sl2-head,
+  .sl2-sweep,
+  .sl2-pip {
+    animation: none !important;
+  }
+  .sl2-sweep {
+    display: none;
+  }
+}

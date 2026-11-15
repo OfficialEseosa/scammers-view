@@ -5,6 +5,7 @@ import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { createFaceLandmarker } from "@/lib/face/landmarker";
 import { drawMesh, meshConnections, type Connection } from "@/lib/face/mesh";
 import { SpinningScan, type ScanPoint } from "./SpinningScan";
+import { ScanLoader } from "./ScanLoader";
 import { HeadTurnChallenge, TURN_TARGET_DEG, type CaptureKind } from "@/lib/face/liveness";
 import { SAME_PERSON_THRESHOLD } from "@/lib/face/match";
 import { estimateYawDeg } from "@/lib/face/pose";
@@ -17,7 +18,7 @@ import { WarnNote } from "@/design/states";
 
 type Stage =
   | { kind: "idle" }
-  | { kind: "starting"; message: string }
+  | { kind: "starting"; message: string; step: 0 | 1 | 2 }
   | { kind: "scanning" }
   | { kind: "verifying" }
   | { kind: "passed" }
@@ -297,7 +298,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       return;
     }
 
-    setStage({ kind: "starting", message: "Opening the camera" });
+    setStage({ kind: "starting", message: "Opening the camera", step: 0 });
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -325,9 +326,12 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       /* autoplay with muted+playsInline normally succeeds */
     }
 
-    setStage({ kind: "starting", message: "Loading the face model on this device" });
-    // Warm the recogniser in parallel; it's needed at the end.
-    void loadRecognizer().catch(() => {});
+    setStage({ kind: "starting", message: "Loading the face mesh on this device", step: 1 });
+    // Start the recogniser now; it is awaited below, before the scan begins.
+    const recognizerReady = loadRecognizer().then(
+      () => true,
+      () => false,
+    );
     let vision: Awaited<ReturnType<typeof createFaceLandmarker>>["vision"];
     try {
       if (!landmarkerRef.current) {
@@ -343,6 +347,12 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
       }
       return;
     }
+    if (runId !== runIdRef.current) return;
+
+    // Compiling the matcher freezes the page for a moment. Do it here, behind the loading
+    // screen, so the head-turn scan that follows stays smooth. Capped: a slow device moves on.
+    setStage({ kind: "starting", message: "Warming up the matcher", step: 2 });
+    await Promise.race([recognizerReady, new Promise((r) => setTimeout(r, 12_000))]);
     if (runId !== runIdRef.current) return;
 
     const { tess, contours, irises } = meshConnections(vision);
@@ -493,7 +503,6 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
     };
   }, []);
 
-  const live = stage.kind === "scanning" || stage.kind === "starting";
   const yawClamped = Math.max(-45, Math.min(45, yaw));
   // Preview is mirrored, so the user's left is on screen-left.
   const dotLeft = 50 - (yawClamped / 45) * 50;
@@ -537,12 +546,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
                 <p className="max-w-[24ch] text-lg">Look at the camera, then turn your head when asked</p>
               </>
             )}
-            {stage.kind === "starting" && (
-              <p className="flex items-center gap-3 text-lg">
-                <span className="sv-pulse inline-block h-2.5 w-2.5 rounded-full bg-fg" aria-hidden="true" />
-                {stage.message}
-              </p>
-            )}
+            {stage.kind === "starting" && <ScanLoader step={stage.step} message={stage.message} />}
             {stage.kind === "verifying" && (
               <>
                 {scanModel ? (
@@ -630,7 +634,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
           {stage.kind === "idle" ? "Start face scan" : "Try again"}
         </button>
       )}
-      {live && stage.kind === "starting" && <p className="text-muted">Allow camera access when asked</p>}
+      {stage.kind === "starting" && stage.step === 0 && <p className="text-muted">Allow camera access when asked</p>}
     </section>
   );
 }
