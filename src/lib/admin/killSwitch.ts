@@ -39,6 +39,44 @@ async function store(token: string): Promise<string | null> {
   return id;
 }
 
+/** Read one JSON record from the flag store. Null when missing or unreachable. */
+export async function kvGet<T>(key: string): Promise<T | null> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return null;
+  try {
+    const id = await store(token);
+    if (!id) return null;
+    const res = await fetch(`${API}/key-value-stores/${id}/records/${key}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Write one JSON record to the flag store. Best effort: failures are swallowed. */
+export async function kvPut(key: string, value: unknown): Promise<boolean> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return false;
+  try {
+    const id = await store(token);
+    if (!id) return false;
+    const res = await fetch(`${API}/key-value-stores/${id}/records/${key}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(value),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function killSwitchConfigured(): boolean {
   return Boolean(process.env.APIFY_TOKEN && process.env.ADMIN_EMAIL);
 }

@@ -4,6 +4,7 @@ import { isLlmConfigured, LlmBillingError, LlmNotConfiguredError } from "@/lib/l
 import type { ScanEvent } from "@/lib/types";
 import { runScan } from "@/lib/scan/orchestrator";
 import { Recorder, replay } from "@/lib/scan/recording";
+import { takeScan } from "@/lib/scan/quota";
 
 const GEMINI_NOT_CONFIGURED = "Gemini is not configured: set GEMINI_API_KEY on the server to run a live scan.";
 
@@ -59,6 +60,12 @@ export async function GET(request: Request) {
             emit({ type: "error", message: GEMINI_NOT_CONFIGURED });
             return;
           } else {
+            // A fresh scan costs money: a few a day per person, kept on their device in between.
+            const allowed = await takeScan(subject.email);
+            if (!allowed.ok) {
+              emit({ type: "error", message: `You have used today's ${allowed.quota.limit} scans. Your saved results are still on this device. Try again tomorrow.` });
+              return;
+            }
             ran = true;
             const final = await runScan(subject, emit, abort.signal);
             if (final) recorder?.setFinal(final);

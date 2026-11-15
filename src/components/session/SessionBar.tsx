@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Brand } from "@/components/Brand";
 import { useSession } from "@/state/session";
@@ -40,16 +40,37 @@ export function FaceBadge() {
 
 /** Shown when results came from this device: when they were scanned, and a way to scan again. */
 export function SavedScanChip() {
-  const { scan } = useSession();
+  const { scan, mock } = useSession();
   const [now] = useState(() => Date.now());
+  const [left, setLeft] = useState<number | null>(null);
+  const cached = Boolean(scan.cachedAt);
+  useEffect(() => {
+    if (!cached || mock) return;
+    let off = false;
+    fetch("/api/scan/quota", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((q: { remaining?: number; unlimited?: boolean } | null) => {
+        if (!off && q && !q.unlimited && typeof q.remaining === "number") setLeft(q.remaining);
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [cached, mock]);
   if (!scan.cachedAt) return null;
   const mins = Math.max(0, Math.round((now - scan.cachedAt) / 60000));
   const age = mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : mins < 1440 ? `${Math.round(mins / 60)} h ago` : `${Math.round(mins / 1440)} d ago`;
   return (
     <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-edge pl-2.5 pr-1 text-sm max-md:hidden">
       <span className="text-muted">Scanned {age}</span>
-      <button type="button" className="sv-press min-h-7 rounded-full border border-edge-strong px-2.5 font-medium hover:border-fg" onClick={scan.restart}>
-        Rescan
+      <button
+        type="button"
+        className="sv-press min-h-7 rounded-full border border-edge-strong px-2.5 font-medium hover:border-fg disabled:cursor-not-allowed disabled:opacity-45"
+        onClick={scan.restart}
+        disabled={left === 0}
+        title={left === 0 ? "No scans left today" : undefined}
+      >
+        {left === null ? "Rescan" : left === 0 ? "No scans left today" : `Rescan · ${left} left`}
       </button>
     </span>
   );
