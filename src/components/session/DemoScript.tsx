@@ -33,7 +33,7 @@ const BEATS: Beat[] = [
       s.unlock();
       s.setStage("results");
       s.setTab("map");
-      later(() => q<HTMLButtonElement>('[data-panel="map"] .am-rail-play')?.click(), 1100);
+      later(() => q<HTMLButtonElement>('[data-panel="map"] [data-ways], [data-panel="map"] .am-rail-play')?.click(), 1100);
     },
   },
   {

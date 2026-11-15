@@ -86,7 +86,7 @@ export function ResponsiveAttackMap(props: AttackMapProps) {
           >
             Your web
           </button>
-          <button type="button" aria-pressed={shown === "steps"} className={shown === "web" ? "am-rail-play" : undefined} onClick={() => setView("steps")}>
+          <button type="button" aria-pressed={shown === "steps"} data-ways={shown === "web" ? "" : undefined} onClick={() => setView("steps")}>
             Ways in
           </button>
         </div>
