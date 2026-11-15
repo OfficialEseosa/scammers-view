@@ -12,7 +12,11 @@
 .sv-places-stage { position: relative; isolation: isolate; height: 55svh; min-height: 320px; overflow: hidden; }
 .sv-places-map { position: absolute; inset: 0; background: var(--sunken); font-family: var(--font-sans); }
 .sv-places-map:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
-.sv-places-engine { position: absolute; inset: 0; }
+/* The map library's own stylesheet sets position: relative on its container and loads later,
+   which collapsed this to zero height. The doubled selector outranks it. */
+.sv-places-engine.sv-places-engine,
+.sv-places-engine.maplibregl-map,
+.sv-places-engine.leaflet-container { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sv-places-mapload { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 
 @media (min-width: 768px) {
