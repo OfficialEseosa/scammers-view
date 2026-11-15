@@ -1,3 +1,4 @@
+import { resolveMx } from "node:dns/promises";
 import { fetchPage, type PageData } from "@/lib/scan/pageFetch";
 import { hostOf } from "./sites";
 
@@ -102,7 +103,75 @@ export function contactPages(listingUrl: string, links: { url: string; text: str
 type Fetcher = (url: string, signal: AbortSignal) => Promise<PageData | null>;
 
 const CACHE_MS = 10 * 60 * 1000;
-const cache = new Map<string, { at: number; list: SiteContact[] }>();
+const cache = new Map<string, { at: number; list: SiteContact[]; contactPage: string | null }>();
+
+const kindOf = (address: string) => rank(address, true);
+
+/**
+ * The addresses worth offering: on the site's own domain, role inboxes before personal ones,
+ * nothing that looks machine-made. Other domains and odd-looking locals are left out.
+ */
+export function suggested(list: SiteContact[]): SiteContact[] {
+  const own = list.filter((c) => {
+    const local = c.address.split("@")[0];
+    return c.sameSite && local.length <= 30 && !/\d{5,}|^[0-9a-f]{12,}$|[%+]/.test(local);
+  });
+  const roles = own.filter((c) => kindOf(c.address) < 2);
+  return (roles.length ? roles : own).slice(0, 3);
+}
+
+type MxLookup = (domain: string) => Promise<unknown[]>;
+
+/**
+ * Last resort when a site publishes no address: the usual role inboxes on its own domain,
+ * offered only when that domain accepts mail at all. These are guesses and may bounce.
+ */
+export async function guessedAddresses(listingUrl: string, mx: MxLookup = resolveMx): Promise<string[]> {
+  const host = hostOf(listingUrl);
+  if (!host) return [];
+  const domain = baseDomain(host);
+  if (PUBLIC_SUFFIX.has(domain) || PUBLIC_SUFFIX.has(domain.split(".").slice(-2).join("."))) return [];
+  try {
+    const records = await Promise.race([mx(domain), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("mx timeout")), 4000))]);
+    if (!records.length) return [];
+  } catch {
+    return [];
+  }
+  return ["privacy", "contact", "info"].map((l) => `${l}@${domain}`);
+}
+
+export interface SiteContactInfo {
+  /** Published by the site, sensible ones only, best first. */
+  contacts: SiteContact[];
+  /** The site's contact page, when it has one that loads. */
+  contactPage: string | null;
+  /** Unpublished role inboxes on the site's domain; only filled when nothing was published. */
+  guesses: string[];
+}
+
+/** Everything the panel needs to reach a site: published addresses, else its contact page, else guesses. */
+export async function siteContactInfo(listingUrl: string, signal: AbortSignal, fetcher: Fetcher = fetchPage, mx: MxLookup = resolveMx): Promise<SiteContactInfo> {
+  const list = await findSiteContact(listingUrl, signal, fetcher);
+  const contacts = suggested(list);
+  const contactPage = fetcher === fetchPage ? (cache.get(listingUrl)?.contactPage ?? null) : await contactPageOf(listingUrl, signal, fetcher);
+  return { contacts, contactPage, guesses: contacts.length ? [] : await guessedAddresses(listingUrl, mx) };
+}
+
+async function contactPageOf(listingUrl: string, signal: AbortSignal, fetcher: Fetcher): Promise<string | null> {
+  const first = await fetcher(listingUrl, signal).catch(() => null);
+  for (const u of contactPages(listingUrl, [...(first?.contactLinks ?? []), ...(first?.links ?? [])]).filter(isContactUrl)) {
+    if (await fetcher(u, signal).catch(() => null)) return u;
+  }
+  return null;
+}
+
+const isContactUrl = (u: string) => {
+  try {
+    return /contact|feedback|get-in-touch|support/i.test(new URL(u).pathname);
+  } catch {
+    return false;
+  }
+};
 
 /** Reads the listing page and the site's contact pages, and returns the addresses found, best first. */
 export async function findSiteContact(listingUrl: string, signal: AbortSignal, fetcher: Fetcher = fetchPage, now = Date.now()): Promise<SiteContact[]> {
@@ -114,7 +183,19 @@ export async function findSiteContact(listingUrl: string, signal: AbortSignal, f
   const read = (p: PageData | null, url: string) => (p ? emailsOnPage([p.text, p.description, ...(p.mailto ?? [])].join("\n"), host, p.url || url) : []);
   const first = await fetcher(listingUrl, signal).catch(() => null);
   const pages = contactPages(listingUrl, [...(first?.contactLinks ?? []), ...(first?.links ?? [])]);
-  const rest = await Promise.all(pages.map((u) => fetcher(u, signal).then((p) => read(p, u)).catch(() => [] as SiteContact[])));
+  const loaded: string[] = [];
+  const rest = await Promise.all(
+    pages.map((u) =>
+      fetcher(u, signal)
+        .then((p) => {
+          if (p) loaded.push(u);
+          return read(p, u);
+        })
+        .catch(() => [] as SiteContact[]),
+    ),
+  );
+  // In the order the pages were chosen, not the order they answered.
+  const contactPage = pages.find((u) => loaded.includes(u) && isContactUrl(u)) ?? null;
 
   const seen = new Set<string>();
   const list = [...read(first, listingUrl), ...rest.flat()]
@@ -123,7 +204,7 @@ export async function findSiteContact(listingUrl: string, signal: AbortSignal, f
     .slice(0, 6);
   if (fetcher === fetchPage) {
     if (cache.size > 200) cache.clear();
-    cache.set(listingUrl, { at: now, list });
+    cache.set(listingUrl, { at: now, list, contactPage });
   }
   return list;
 }

@@ -5,7 +5,7 @@ import type { PageData } from "../scan/pageFetch";
 import type { Fix } from "../fixes/types";
 import { siteDraft } from "../fixes/optout";
 import { decodeCfEmail } from "../scan/pageFetch";
-import { baseDomain, contactPages, emailsOnPage, findSiteContact, plainAddresses, recipientAllowed, sameSite } from "./contact";
+import { baseDomain, contactPages, emailsOnPage, findSiteContact, guessedAddresses, plainAddresses, recipientAllowed, sameSite, siteContactInfo, suggested } from "./contact";
 import { cleanupForFix } from "./tasks";
 
 const page = (url: string, text: string, extra: Partial<PageData> = {}): PageData => ({ url, title: "", description: "", text, images: [], links: [], metaOnly: false, ...extra });
@@ -128,4 +128,40 @@ test("findSiteContact: footer links beyond the first 80 and security.txt are use
   };
   const found = await findSiteContact(listing, AbortSignal.timeout(1000), async (url) => site[url] ?? null);
   assert.deepEqual(found.map((c) => c.address).sort(), ["editor@campus-news.example", "security@campus-news.example"]);
+});
+
+test("suggested: only sensible addresses on the site's own domain, role inboxes before people", () => {
+  const c = (address: string, same = true) => ({ address, page: "https://campus-news.example/contact", sameSite: same });
+  const list = [c("jsmith@campus-news.example"), c("ads@agency.example", false), c("privacy@campus-news.example"), c("u1234567890@campus-news.example"), c("editor@campus-news.example")];
+  assert.deepEqual(suggested(list).map((x) => x.address), ["privacy@campus-news.example", "editor@campus-news.example"]);
+  assert.deepEqual(suggested([c("jsmith@campus-news.example")]).map((x) => x.address), ["jsmith@campus-news.example"]);
+  assert.deepEqual(suggested([c("ads@agency.example", false)]), []);
+});
+
+test("guessedAddresses: role inboxes on the domain, only when it takes mail and is not a shared host", async () => {
+  const takesMail = async () => [{ exchange: "mx.campus-news.example", priority: 10 }];
+  assert.deepEqual(await guessedAddresses("https://news.campus-news.example/story/1", takesMail), ["privacy@campus-news.example", "contact@campus-news.example", "info@campus-news.example"]);
+  assert.deepEqual(await guessedAddresses("https://campus-news.example/story/1", async () => []), []);
+  assert.deepEqual(await guessedAddresses("https://campus-news.example/story/1", async () => Promise.reject(new Error("ENOTFOUND"))), []);
+  assert.deepEqual(await guessedAddresses("https://alex.github.io/about", takesMail), []);
+});
+
+test("siteContactInfo: published address, else the contact page plus guesses", async () => {
+  const listing = "https://campus-news.example/story/1";
+  const mx = async () => [{}];
+  const withAddress = async (url: string) => (url === listing ? page(listing, "Write to editor@campus-news.example") : null);
+  const a = await siteContactInfo(listing, AbortSignal.timeout(1000), withAddress, mx);
+  assert.deepEqual(a.contacts.map((c) => c.address), ["editor@campus-news.example"]);
+  assert.deepEqual(a.guesses, []);
+
+  const formOnly = async (url: string) =>
+    url === listing ? page(listing, "Alex Rivera wins award") : url === "https://campus-news.example/contact" ? page(url, "Use the form below.") : null;
+  const b = await siteContactInfo(listing, AbortSignal.timeout(1000), formOnly, mx);
+  assert.deepEqual(b.contacts, []);
+  assert.equal(b.contactPage, "https://campus-news.example/contact");
+  assert.equal(b.guesses[0], "privacy@campus-news.example");
+  assert.equal(await recipientAllowed(b.guesses[0], listing, AbortSignal.timeout(1000), formOnly), true);
+
+  const nothing = await siteContactInfo(listing, AbortSignal.timeout(1000), async (url) => (url === listing ? page(listing, "Alex Rivera") : null), async () => []);
+  assert.deepEqual(nothing, { contacts: [], contactPage: null, guesses: [] });
 });
