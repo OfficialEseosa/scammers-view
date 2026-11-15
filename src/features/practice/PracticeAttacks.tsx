@@ -199,17 +199,6 @@ function MessageLesson({ data, findings, masked, onAnother }: { data: PracticeMe
             {body}
           </EmailFrame>
         )}
-        {data.basedOn && (
-          <p className="text-sm text-muted">
-            Modelled on{" "}
-            <a href={data.basedOn.url} target="_blank" rel="noopener noreferrer" className="text-fg underline underline-offset-4">
-              {data.basedOn.title}
-            </a>{" "}
-            <span className="font-mono text-xs">
-              {data.basedOn.source}, {data.basedOn.year}
-            </span>
-          </p>
-        )}
       </div>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-24">

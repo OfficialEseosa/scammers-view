@@ -19,7 +19,6 @@ import { FindingFeed } from "@/components/scan/FindingFeed";
 import { QuickActions } from "@/components/session/QuickActions";
 import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
 import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
-import { ChainCases, OpenCases, useRealCases } from "@/features/cases";
 import { AttackMapSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
 const load = (label: string) =>
@@ -58,9 +57,6 @@ export function Results() {
     return [...scan.findings, ...extra.filter((f) => !ids.has(f.id) && !notMeIds.has(f.id))];
   }, [scan.findings, breachFindings, voiceFindings, photoFindings, videoFindings, notMeIds]);
 
-  // Real, published scam reports that fit this scan (Typesense, or the built-in matcher).
-  const realCases = useRealCases(findings, scan.chains);
-
   const go = (t: ResultsTab) => {
     setTab(t);
     window.scrollTo({ top: 0 });
@@ -89,7 +85,6 @@ export function Results() {
               videos={findings.filter((f) => f.category === "video").length}
             />
             <FixListSlot findings={findings} chains={scan.chains} score={scan.score} masked={masked} onRemovedChange={s.setRemovedFindingIds} />
-            <OpenCases cases={realCases} findings={findings} removedFindingIds={s.removedFindingIds} className="mx-4 mt-16 sm:mx-0" />
             <Overview findings={findings} />
             <SeeWhy onClick={seeWhy} className={unlocked ? "xl:hidden" : undefined} />
           </div>
@@ -121,7 +116,6 @@ export function Results() {
           <div className="relative h-[calc(100dvh-10rem)] min-h-[460px] overflow-hidden rounded-card border border-edge">
             <AttackMapSlot findings={findings} chains={scan.chains} score={s.liveScore} subjectName={name} masked={masked} removedFindingIds={s.removedFindingIds} />
           </div>
-          <ChainCases cases={realCases} findings={findings} chains={scan.chains} removedFindingIds={s.removedFindingIds} className="mx-1 mt-12 sm:mx-0" />
         </section>
       )}
 

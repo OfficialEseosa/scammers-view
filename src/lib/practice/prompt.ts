@@ -64,8 +64,6 @@ export function buildUserPrompt(args: {
   findings: Finding[];
   kind: PracticeKind;
   scenario: PracticeScenario;
-  /** A published scam report to model the tactics on (reference data, not about the recipient). */
-  realCase?: { title: string; summary: string; source: string; year: number };
 }): string {
   const sc = SCENARIOS.find((s) => s.id === args.scenario)!;
   const facts = factsForPrompt(args.findings);
@@ -78,11 +76,6 @@ export function buildUserPrompt(args: {
     `SCENARIO: ${sc.label} - ${sc.brief}`,
     `RECIPIENT (the trainee themselves): ${JSON.stringify(recipient)}`,
     `FACTS:\n${JSON.stringify(facts, null, 1)}`,
-    ...(args.realCase
-      ? [
-          `REAL CASE (published by ${args.realCase.source}, ${args.realCase.year}): ${args.realCase.title}. ${args.realCase.summary}\nModel the approach, the pressure and what is asked for on this real case, adapted to the SCENARIO and the FACTS. Do not copy its wording or name the agency.`,
-        ]
-      : []),
     "Write the practice message and its tells now.",
   ].join("\n\n");
 }

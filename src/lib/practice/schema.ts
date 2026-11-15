@@ -88,8 +88,6 @@ export const PracticeMessage = z.object({
   body: z.string(),
   tells: z.array(Tell),
   whatToDo: z.array(z.string()),
-  /** The published scam report the message was modelled on, when one fits the scenario. */
-  basedOn: z.object({ title: z.string(), source: z.string(), year: z.number(), url: z.string() }).optional(),
 });
 export type PracticeMessage = z.infer<typeof PracticeMessage>;
 

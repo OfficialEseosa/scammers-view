@@ -59,36 +59,3 @@ client as sign-in. In the Google Cloud project:
 5. Restart `npm run dev`, sign in, and press **Check my Gmail** on `/check` or in the scan
    results. Afterwards, [myaccount.google.com/permissions](https://myaccount.google.com/permissions)
    should no longer list Gmail access for the app.
-
-## Real scam cases
-
-After a scan, the app shows published scam reports that fit what is public about you:
-
-- **Attack map**: each way in is paired with the closest real case.
-- **Fix list**: a count of reported scams that fit you drops as fixes remove the facts they rely on.
-- **Practice attacks**: the message is modelled on a real case of the same scam and links to it.
-
-293 cases are indexed: 97 FBI IC3 announcements (2018 to 2026) and 196 FTC consumer alerts
-(2021 to 2026). Each is tagged with the kind of scam, how it reaches you and the public facts it
-relies on. A search keeps only the cases whose facts are all public for this person, then ranks
-them by meaning against the attack chain. Only these reference documents are indexed; scan
-findings are used as the query and are not stored.
-
-- Source text and tags: `data/scam-cases/`. The tags were assigned by hand from each title and
-  opening paragraph.
-- Rebuild the list the app loads: `npx tsx scripts/build-scam-cases.ts`.
-- Load it into Typesense: `npm run index:typesense -- --cases` (needs `TYPESENSE_HOST` and
-  `TYPESENSE_API_KEY`). Without Typesense the app uses a built-in matcher over the same cases.
-
-### Credits for this feature
-
-| What | Source | Terms |
-|---|---|---|
-| FBI scam announcements | [FBI Internet Crime Complaint Center, Public Service Announcements](https://www.ic3.gov/PSA) | US Government publication |
-| FTC consumer alerts | Source: United States Federal Trade Commission, [consumer.ftc.gov](https://consumer.ftc.gov/consumer-alerts) | US Government work, public domain, attribution requested |
-| Copies of the FTC alerts | [Internet Archive Wayback Machine](https://web.archive.org/) | Used to retrieve the public FTC pages |
-| Search engine | [Typesense](https://typesense.org/) (Typesense Cloud) | GPL-3.0 |
-| Embedding model | `all-MiniLM-L12-v2` (sentence-transformers), run inside Typesense | Apache-2.0 |
-
-The FTC and FBI do not endorse this project. The tagging, the matching rules and the plain
-descriptions of each scam type in `data/scam-cases/scam-types.json` are our own work.
