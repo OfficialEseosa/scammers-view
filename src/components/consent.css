@@ -1,0 +1,89 @@
+/* "Scan me" gets nervous as the pointer closes in, once every box is ticked.
+   --i (0..1) is set from pointer distance by ConsentForm. */
+
+.sv-dread {
+  --i: 0;
+  --amp: calc(var(--i) * 3.2px);
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+  border-radius: var(--radius-control, 14px);
+  scale: calc(1 + var(--i) * 0.2);
+  transform-origin: left center;
+  transition:
+    scale 220ms var(--ease-out, ease-out),
+    box-shadow 220ms ease;
+  box-shadow:
+    0 0 0 calc(var(--i) * 9px) color-mix(in srgb, var(--danger) calc(var(--i) * 30%), transparent),
+    0 0 calc(var(--i) * 54px) calc(var(--i) * 6px) color-mix(in srgb, var(--danger) calc(var(--i) * 45%), transparent);
+}
+.sv-dread[data-hot="true"] > * {
+  animation: sv-dread calc(170ms - var(--i) * 95ms) linear infinite;
+}
+.sv-dread[data-hot="true"][data-near="false"] > * {
+  animation: none;
+}
+@keyframes sv-dread {
+  0% {
+    translate: calc(var(--amp) * -1) 0;
+  }
+  25% {
+    translate: var(--amp) calc(var(--amp) * -0.6);
+  }
+  50% {
+    translate: calc(var(--amp) * -0.7) var(--amp);
+  }
+  75% {
+    translate: var(--amp) calc(var(--amp) * 0.5);
+  }
+  100% {
+    translate: calc(var(--amp) * -1) 0;
+  }
+}
+
+/* The moment the last box is ticked: one hard kick so the button announces itself. */
+.sv-dread[data-hot="true"] {
+  animation: sv-arm 520ms var(--ease-out, ease-out) 1;
+}
+@keyframes sv-arm {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 26px transparent;
+  }
+}
+
+/* Touch screens have no pointer to approach with: a slow uneasy pulse instead. */
+@media (hover: none) {
+  .sv-dread[data-hot="true"] {
+    --i: 0.45;
+  }
+}
+
+/* A ticked row nudges sideways, as if the page flinched. */
+.sv-flinch {
+  animation: sv-flinch 380ms var(--ease-out, ease-out) 1;
+}
+@keyframes sv-flinch {
+  0% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 7px 0;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-dread {
+    scale: calc(1 + var(--i) * 0.06);
+  }
+  .sv-dread[data-hot="true"],
+  .sv-dread[data-hot="true"] > *,
+  .sv-flinch {
+    animation: none;
+  }
+}

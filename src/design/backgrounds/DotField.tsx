@@ -53,7 +53,15 @@ export function DotField({
       window.addEventListener("pointermove", onMove, { passive: true });
       document.addEventListener("pointerleave", onLeave);
     }
-    const ripples: { x: number; y: number; t0: number }[] = [];
+    // `push` marks a shockwave from a click: wider, faster, and it shoves the dots outward as it passes.
+    const ripples: { x: number; y: number; t0: number; push?: number }[] = [];
+    const onRipple = (e: Event) => {
+      const d = (e as CustomEvent<{ x: number; y: number; strength?: number }>).detail;
+      if (!d) return;
+      const r = canvas.getBoundingClientRect();
+      ripples.push({ x: d.x - r.left, y: d.y - r.top, t0: performance.now(), push: d.strength ?? 1 });
+    };
+    window.addEventListener("sv:ripple", onRipple);
     let nextRipple = 0;
     // The resting grid is drawn once into a bitmap; frames only repaint the dots the
     // pointer or a ripple is touching, and skip entirely when nothing moves.
@@ -139,15 +147,31 @@ export function DotField({
             let k = 0;
             const dp = Math.hypot(x - pointer.x, y - pointer.y);
             if (dp < PR) k = 1 - dp / PR;
+            let ox = 0;
+            let oy = 0;
             for (const r of ripples) {
               const age = (t - r.t0) / 2600;
+              if (r.push) {
+                // Click shockwave: crosses the screen in about a second and pushes dots away from the click.
+                const fast = Math.min(1, age * 2.6);
+                const radius = fast * Math.max(w, h) * 0.9;
+                const dist = Math.hypot(x - r.x, y - r.y) || 1;
+                const d = Math.abs(dist - radius);
+                if (d < 70) {
+                  const wave = (1 - d / 70) * (1 - fast) * r.push;
+                  k = Math.max(k, wave);
+                  ox += ((x - r.x) / dist) * wave * 11;
+                  oy += ((y - r.y) / dist) * wave * 11;
+                }
+                continue;
+              }
               const radius = age * 340;
               const d = Math.abs(Math.hypot(x - r.x, y - r.y) - radius);
               if (d < 26) k = Math.max(k, (1 - d / 26) * (1 - age) * 0.8);
             }
             if (k <= 0) continue;
             ctx.clearRect(x - 3, y - 3, 6, 6);
-            dot(ctx, x, y, k);
+            dot(ctx, x + ox, y + oy, k);
           }
         }
       },
@@ -155,6 +179,7 @@ export function DotField({
         stopTheme();
         stopTheme2();
         window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("sv:ripple", onRipple);
         document.removeEventListener("pointerleave", onLeave);
       },
     };
