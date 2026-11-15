@@ -21,6 +21,8 @@ const SOURCE: Record<string, string> = { "ic3-psa.json": "FBI IC3", "ftc-alerts.
 
 function summary(text: string, title: string): string {
   let t = text.replace(/^##\s*/gm, "").replace(/\s+/g, " ").trim();
+  // Video embed boilerplate at the top of some FTC alerts.
+  t = t.replace(/^(Powered by vimeo embed video generator\s*)?(Share this video[^.]*\.|\(View or share[^)]*\)\.?)\s*/i, "");
   if (t.toLowerCase().startsWith(title.toLowerCase())) t = t.slice(title.length).trim();
   if (t.length <= 520) return t;
   const cut = t.slice(0, 520);

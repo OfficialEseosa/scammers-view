@@ -8,13 +8,14 @@ import { localCases, needsFilter } from "./search";
 
 test("case docs are sourced, tagged with known categories and unique", () => {
   const docs = caseDocs();
-  assert.ok(docs.length >= 90);
+  assert.ok(docs.length >= 250);
+  assert.ok(docs.some((d) => d.source === "FBI IC3") && docs.some((d) => d.source === "FTC"));
   assert.equal(new Set(docs.map((d) => d.id)).size, docs.length);
   const cats = new Set<string>(FindingCategory.options);
   for (const d of docs) {
     assert.match(d.url, /^https:\/\/(www\.ic3\.gov|consumer\.ftc\.gov)\//);
     assert.ok(d.needs.length > 0 && d.needs.every((n) => cats.has(n)), d.id);
-    assert.ok(d.channels.length > 0 && d.summary.length > 40, d.id);
+    assert.ok(d.channels.length > 0 && d.summary.length > 40 && d.how.length > 20, d.id);
   }
 });
 
@@ -51,4 +52,17 @@ test("local search only returns cases the exposure allows, best match first", ()
   const noFamily = localCases({ exposed: ["phone", "location"], queries: q }, 5);
   assert.ok(noFamily.c1.every((h) => !h.needs.includes("relative")));
   assert.deepEqual(localCases({ exposed: [], queries: q }, 5).c1, []);
+});
+
+test("student scams are covered: job, tuition and rental cases exist for a student's exposure", () => {
+  const exposed = ["school", "email", "phone", "location"] as const;
+  const q = [
+    { id: "job", text: "A campus job offer by email that sends a check before any work" },
+    { id: "aid", text: "A call about unpaid college tuition says pay now or be dropped from classes" },
+    { id: "rent", text: "A rental listing near campus asks for a deposit before a viewing" },
+  ];
+  const r = localCases({ exposed: [...exposed], queries: q }, 3);
+  assert.equal(r.job[0]?.scam_type, "job-offer");
+  assert.equal(r.aid[0]?.scam_type, "financial-aid");
+  assert.equal(r.rent[0]?.scam_type, "rental");
 });

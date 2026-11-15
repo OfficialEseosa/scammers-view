@@ -31,5 +31,17 @@
  "student-loan": "A call, text or email about student loan forgiveness or financial aid asks for a fee, your login or your personal details.",
  "sim-swap": "Someone uses your personal details to move your phone number to their SIM, then receives your login codes.",
  "crypto-atm-payment": "A caller keeps you on the phone and directs you to pay through a crypto cash machine or QR code.",
- "boss-gift-cards": "A message that appears to come from your boss, professor or someone in authority asks you to buy gift cards and send the codes."
+ "boss-gift-cards": "A message that appears to come from your boss, professor or someone in authority asks you to buy gift cards and send the codes.",
+ "rental": "A fake landlord or listing for a flat or room near you asks for a deposit, an application fee or your details before you have seen the place.",
+ "financial-aid": "A call or message about unpaid tuition, a refund or financial aid says you must pay or confirm your details now or lose your place.",
+ "prize": "A call, letter or message says you won a prize, sweepstakes or unclaimed money and asks for a fee or your bank details to release it.",
+ "debt-relief": "A caller promises to wipe or cut your debt for an upfront fee.",
+ "pet-sale": "A fake advert for a puppy, kitten or exotic pet takes payment, then keeps asking for shipping and vet fees.",
+ "lost-pet": "After you post about a lost or sick pet, someone claims to have it or to be treating it and asks for payment.",
+ "travel": "A fake travel site, deal or booking takes payment for a trip, visa or document service that is not real.",
+ "grant": "A message offers free government money or help with bills and asks for a fee or your personal details first.",
+ "utility": "A caller or visitor poses as your power, gas or water company and threatens to cut you off unless you pay at once.",
+ "loan": "A call or text follows up on a loan you never applied for to get your personal and bank details.",
+ "immigration": "Someone on social media poses as an immigration lawyer or official and charges for help with visas or status.",
+ "funeral-impersonation": "After a death in the family is made public, someone poses as the funeral home or an official and tells relatives to pay now."
 }
