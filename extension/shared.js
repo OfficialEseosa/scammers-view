@@ -21,7 +21,6 @@ export const AGENT_HOSTS = [
   "spokeo.com",
   "whitepages.com",
   "beenverified.com",
-  "radaris.com",
   "truepeoplesearch.com",
   "fastpeoplesearch.com",
   "instagram.com",

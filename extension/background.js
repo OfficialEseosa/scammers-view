@@ -104,6 +104,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Tabs the agent opened, with the hosts each one may stay on. Lost if the worker restarts,
 // which simply ends the run (the app page then offers to try again).
 const agentTabs = new Map();
+const ASK_SLICE_MS = 4 * 60 * 1000;
+
+function awayHost(url) {
+  try {
+    return new URL(url).hostname || "another page";
+  } catch {
+    return "another page";
+  }
+}
 
 function waitForTab(tabId, timeoutMs = 20000) {
   return new Promise((resolve) => {
@@ -127,29 +136,33 @@ async function inTab(tabId, func, args = []) {
   return res?.result;
 }
 
-async function agentTab(tabId) {
+const TAB_GONE = "The agent's tab was closed or the extension restarted, so I stopped. Press Try again to start over.";
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Where the agent's tab is: on the task's site ({ entry }) or on another website
+ * ({ entry, away: host }), e.g. a sign-in page. Blank pages while loading are waited out.
+ */
+async function tabState(tabId) {
   const entry = agentTabs.get(tabId);
-  if (!entry) throw new Error("That tab is no longer under the agent's control.");
+  if (!entry) throw new Error(TAB_GONE);
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
-    const tab = await chrome.tabs.get(tabId);
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) throw new Error(TAB_GONE);
     const url = tab.url ?? "";
-    if (agentAllowed(url, entry.hosts)) return entry;
-    if (url && !isTransientUrl(url)) {
-      const host = (() => {
-        try {
-          return new URL(url).hostname;
-        } catch {
-          return url.slice(0, 40);
-        }
-      })();
-      throw new Error(
-        `The tab went to ${host}, outside ${entry.hosts.join(", ")}. Sign in there if needed, open your ${entry.hosts[0]} page again, then press Try again.`,
-      );
-    }
-    await new Promise((r) => setTimeout(r, 250));
+    if (agentAllowed(url, entry.hosts)) return { entry };
+    if (url && !isTransientUrl(url)) return { entry, away: awayHost(url) };
+    await sleep(250);
   }
-  throw new Error("That page didn't finish loading on the allowed site. Stay on the tab and press Try again.");
+  throw new Error("That page didn't finish loading. Check the tab, then press Try again.");
+}
+
+/** The tab's entry, or an error when the tab is not on the task's site. */
+async function agentTab(tabId) {
+  const { entry, away } = await tabState(tabId);
+  if (away) throw new Error(`The tab is on ${away}, not ${entry.hosts[0]}. Go back to ${entry.hosts[0]} in that tab.`);
+  return entry;
 }
 
 async function focusAgentTab(tabId) {
@@ -216,18 +229,24 @@ async function agentOp(op, p, appTabId) {
       await focusAgentTab(tab.id);
       await openCleanupPanel(tab.id, tab.windowId);
       await setCleanupLive({ site: hosts[0] || "site", text: `Opened ${hosts[0] || "site"}. Waiting for the page…`, running: true });
-      // Wait until we're on an allowed URL (not about:blank), then stay on this tab.
+      // Wait until the tab has a real URL (not about:blank). A redirect to another website
+      // (a sign-in page) is not an error here: the next snapshot reports it and the run waits.
       try {
-        await agentTab(tab.id);
+        await tabState(tab.id);
       } catch (e) {
-        return { ok: false, error: e?.message || "Couldn't stay on that site." };
+        return { ok: false, error: e?.message || "Couldn't open that site." };
       }
       return { ok: true, data: { tabId: tab.id } };
     }
     case "snapshot": {
-      await agentTab(p.tabId);
+      if (!agentTabs.has(p.tabId)) throw new Error(TAB_GONE);
       await waitForTab(p.tabId, 10000);
-      await new Promise((r) => setTimeout(r, 600));
+      await sleep(600);
+      const { away } = await tabState(p.tabId);
+      if (away) {
+        await setCleanupLive({ text: `Waiting for you: the tab is on ${away}.`, running: true });
+        return { ok: true, data: { away } };
+      }
       try {
         const page = await inTab(p.tabId, () => window.__svxAgent.snapshot());
         return { ok: true, data: { page } };
@@ -251,7 +270,7 @@ async function agentOp(op, p, appTabId) {
         return { ok: true };
       }
       const res = await inTab(p.tabId, (s) => window.__svxAgent.act(s), [step]);
-      await new Promise((r) => setTimeout(r, 400));
+      await sleep(400);
       await waitForTab(p.tabId, 8000);
       return res?.ok ? { ok: true } : { ok: false, error: res?.error ?? "That step didn't work." };
     }
@@ -281,12 +300,64 @@ async function agentOp(op, p, appTabId) {
       return { ok: true };
     }
     case "ask": {
-      await agentTab(p.tabId);
-      await focusAgentTab(p.tabId);
-      await setCleanupLive({ text: String(p.text ?? ""), running: true });
+      const entry = agentTabs.get(p.tabId);
+      if (!entry) throw new Error(TAB_GONE);
+      const text = String(p.text ?? "");
       const buttons = Array.isArray(p.buttons) ? p.buttons.slice(0, 3) : [{ id: "ok", label: "Okay", primary: true }];
-      const choice = await inTab(p.tabId, (text, b) => window.__svxAgent.ask(text, b), [String(p.text ?? ""), buttons]);
-      return { ok: true, data: { choice } };
+      if (entry.early) {
+        // Answered from the app page just before this question went up (Stop).
+        const choice = entry.early;
+        entry.early = null;
+        return { ok: true, data: { choice } };
+      }
+      if (!p.again) {
+        await focusAgentTab(p.tabId);
+        await setCleanupLive({ text, running: true });
+      }
+      // The app page can answer too (its own buttons, or Stop).
+      const answered = new Promise((resolve) => {
+        entry.answer = resolve;
+      });
+      // Chrome ends a worker event after five minutes, so answer "again" before that and let the app re-ask.
+      const until = Date.now() + ASK_SLICE_MS;
+      const sliceOver = sleep(ASK_SLICE_MS).then(() => undefined);
+      let quickFails = 0;
+      try {
+        while (Date.now() < until) {
+          const tab = await chrome.tabs.get(p.tabId).catch(() => null);
+          if (!tab) throw new Error(TAB_GONE);
+          let choice;
+          if (agentAllowed(tab.url ?? "", entry.hosts)) {
+            // The bar lives in the page. If the page reloads or moves on while the question is up
+            // (a robot check, a sign-in), the bar is lost: show it again instead of guessing an answer.
+            const shownAt = Date.now();
+            const shown = inTab(p.tabId, (t, b) => window.__svxAgent.ask(t, b), [text, buttons]).then(
+              (c) => (typeof c === "string" ? c : null),
+              () => null,
+            );
+            choice = await Promise.race([shown, answered, sliceOver]);
+            if (choice === null) quickFails = Date.now() - shownAt < 1500 ? quickFails + 1 : 0;
+            if (quickFails >= 20) throw new Error("I couldn't show my question on that page. Reload the tab, then press Try again.");
+          } else {
+            // On another website (signing in): nothing can be shown there. Wait for the tab to come back.
+            choice = await Promise.race([sleep(700).then(() => null), answered, sliceOver]);
+          }
+          if (typeof choice === "string") return { ok: true, data: { choice } };
+          if (choice === undefined) break;
+          await sleep(500);
+        }
+        return { ok: true, data: { again: true } };
+      } finally {
+        entry.answer = null;
+      }
+    }
+    case "answer": {
+      const entry = agentTabs.get(p.tabId);
+      const choice = String(p.choice ?? "stop");
+      await inTab(p.tabId, (c) => window.__svxAgent.answer?.(c), [choice]).catch(() => {});
+      if (entry?.answer) entry.answer(choice);
+      else if (entry && choice === "stop") entry.early = choice;
+      return { ok: true };
     }
     case "visit": {
       const entry = await agentTab(p.tabId);

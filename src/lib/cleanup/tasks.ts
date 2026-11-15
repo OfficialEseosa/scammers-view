@@ -4,13 +4,13 @@ import {
   BROKER_SITES,
   PROFILE_SITES,
   SETTINGS_SITES,
-  allowedUrl,
   brokerForUrl,
   brokerTask,
   hostOf,
   profileForUrl,
   profileTask,
   settingsTask,
+  siteUrl,
 } from "./sites";
 import type { CleanupTask } from "./types";
 
@@ -27,8 +27,8 @@ export function taskFor(id: string, listingUrl?: string): CleanupTask | null {
   }
   if (kind === "profile") {
     const s = PROFILE_SITES.find((x) => x.id === key);
-    if (!s || !listingUrl || !allowedUrl(listingUrl, [s.domain])) return null;
-    return profileTask(s, listingUrl);
+    const url = s && listingUrl ? siteUrl(listingUrl, [s.domain]) : null;
+    return s && url ? profileTask(s, url) : null;
   }
   return null;
 }
@@ -62,7 +62,7 @@ export function cleanupForFix(fix: Fix): { taskId: string; mode: CleanupMode; si
     const b = BROKER_SITES.find((x) => h === x.domain || h.endsWith(`.${x.domain}`));
     if (b) return { taskId: `broker:${b.id}`, mode: b.method === "email" ? "broker-email" : "broker-form", site: b.name };
     const p = profileForUrl(fix.link);
-    if (p) return { taskId: `profile:${p.id}`, mode: "settings", site: p.name };
+    if (p && siteUrl(fix.link, [p.domain])) return { taskId: `profile:${p.id}`, mode: "settings", site: p.name };
   }
   return null;
 }

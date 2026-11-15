@@ -12,6 +12,9 @@ export type RunEvent =
   | { type: "log"; text: string; ok: boolean };
 
 const MAX_STEPS = 30;
+/** The step route rejects longer history lines. */
+const HISTORY_MAX = 300;
+const CONTINUE = "I did it, continue";
 
 function describe(a: AgentAction): string {
   if (a.action === "type") return `Typed an approved detail into field ${a.index}`;
@@ -46,6 +49,7 @@ export async function runTask(opts: {
 }): Promise<{ outcome: RunOutcome; say: string }> {
   const { task, details, hands, copilot, signal, onEvent } = opts;
   const history: string[] = [];
+  const remember = (line: string) => history.push(line.slice(0, HISTORY_MAX));
   let last = "";
   const pushStatus = async (text: string, detail?: string) => {
     onEvent({ type: "say", text });
@@ -59,6 +63,19 @@ export async function runTask(opts: {
     for (let i = 0; i < MAX_STEPS; i++) {
       if (signal.aborted) return { outcome: "stopped", say: "Stopped." };
       const snap = await hands.snapshot();
+      if ("away" in snap) {
+        // Sign-in pages often live on another address. Wait for the student instead of giving up.
+        const text = `The tab is on ${snap.away}, not ${task.site}. Finish there (for example signing in), go back to ${task.site} in that tab, then press "${CONTINUE}".`;
+        onEvent({ type: "waiting", text });
+        const choice = await hands.ask(text, [
+          { id: "continue", label: CONTINUE, primary: true },
+          { id: "stop", label: "Stop this site" },
+        ]);
+        if (signal.aborted) return { outcome: "stopped", say: "Stopped." };
+        if (choice !== "continue") return { outcome: "needs_user", say: text };
+        remember(`The tab left ${task.site} for ${snap.away}; the student brought it back.`);
+        continue;
+      }
       if (snap.image) onEvent({ type: "image", src: snap.image });
       await pushStatus(`Deciding the next step on ${task.site}…`);
       const a = await askStep(details, task, snap.page, history, signal);
@@ -77,11 +94,12 @@ export async function runTask(opts: {
         onEvent({ type: "waiting", text: a.say });
         await hands.status(`Waiting for you: ${a.say}`).catch(() => {});
         const choice = await hands.ask(a.say, [
-          { id: "continue", label: "I did it, continue", primary: true },
+          { id: "continue", label: CONTINUE, primary: true },
           { id: "stop", label: "Stop this site" },
         ]);
+        if (signal.aborted) return { outcome: "stopped", say: "Stopped." };
         if (choice !== "continue") return { outcome: "needs_user", say: a.say };
-        history.push(`The student handled this themselves: ${a.say}`);
+        remember(`The student handled this themselves: ${a.say}`);
         continue;
       }
 
@@ -95,17 +113,19 @@ export async function runTask(opts: {
           { id: "stop", label: "Stop" },
         ]);
         await hands.highlight(undefined);
-        if (choice === "stop") return { outcome: "stopped", say: "You stopped it." };
+        if (signal.aborted) return { outcome: "stopped", say: "Stopped." };
         if (choice === "skip") {
-          history.push(`The student said no to: ${a.say}`);
+          remember(`The student said no to: ${a.say}`);
           await hands.status("Skipped that step.", `Skipped: ${a.say}`).catch(() => {});
           continue;
         }
+        // Only an explicit yes goes ahead. No answer (the page changed under the question) counts as stop.
+        if (choice !== "ok") return { outcome: "stopped", say: "You stopped it." };
       }
 
       await pushStatus(`Doing: ${a.say}`, a.say);
       const r = await hands.act(a);
-      history.push(`${describe(a)} -> ${r.ok ? "ok" : `failed (${r.error})`}`);
+      remember(`${describe(a).slice(0, 220)} -> ${r.ok ? "ok" : `failed (${r.error})`}`);
       onEvent({ type: "log", text: a.say, ok: r.ok });
       await hands.status(r.ok ? `Done: ${a.say}` : `Failed: ${a.say}`, r.ok ? a.say : `Failed: ${a.say}`).catch(() => {});
     }

@@ -13,13 +13,16 @@ export type AskButton = { id: string; label: string; primary?: boolean };
 export interface Hands {
   kind: "extension" | "server";
   open(task: CleanupTask, listingUrl?: string): Promise<void>;
-  snapshot(): Promise<{ page: PageSnapshot; image?: string }>;
+  /** `away` (a host name) means the tab is on another website right now, e.g. a sign-in page. */
+  snapshot(): Promise<{ page: PageSnapshot; image?: string } | { away: string }>;
   act(step: AgentAction): Promise<{ ok: boolean; error?: string }>;
   highlight(index?: number): Promise<void>;
   /** Live step text in the working tab (extension) or a no-op (server). */
   status(text: string, detail?: string): Promise<void>;
   /** Asks the student; resolves with the id of the button they pressed. */
   ask(text: string, buttons: AskButton[]): Promise<string>;
+  /** Answers the question currently shown in the working tab from the app page (extension only). */
+  answer?(choice: string): Promise<void>;
   visit(url: string): Promise<boolean>;
   finish(): Promise<void>;
 }
@@ -94,7 +97,9 @@ export function extensionHands(): Hands {
       await callExtension("status", { tabId, text: `Opened ${task.site}. Working…` }, 5_000).catch(() => {});
     },
     async snapshot() {
-      const res = await callExtension<{ page: PageSnapshot }>("snapshot", { tabId: need() }, 60_000);
+      const res = await callExtension<{ page?: PageSnapshot; away?: string }>("snapshot", { tabId: need() }, 60_000);
+      if (res.away) return { away: res.away };
+      if (!res.page) throw new Error("I couldn't read the page. Press Try again.");
       return { page: res.page };
     },
     async act(step) {
@@ -113,8 +118,17 @@ export function extensionHands(): Hands {
       await callExtension("status", { tabId, text, detail: detail ?? null }, 5_000).catch(() => {});
     },
     async ask(text, buttons) {
-      const res = await callExtension<{ choice: string }>("ask", { tabId: need(), text, buttons });
-      return res.choice;
+      // The extension answers within a few minutes even when nobody pressed a button
+      // (Chrome ends longer waits), so keep asking until there is a choice.
+      for (let again = false; ; again = true) {
+        const res = await callExtension<{ choice?: string; again?: boolean }>("ask", { tabId: need(), text, buttons, again }, 6 * 60 * 1000);
+        if (typeof res?.choice === "string") return res.choice;
+        if (!res?.again) return "stop";
+      }
+    },
+    async answer(choice) {
+      if (tabId === null) return;
+      await callExtension("answer", { tabId, choice }, 10_000).catch(() => {});
     },
     async visit(url) {
       return callExtension("visit", { tabId: need(), url }, 60_000).then(

@@ -19,11 +19,11 @@ export interface BrokerSite {
   expects: ("listing link" | "email check" | "robot check" | "phone call")[];
 }
 
+// Radaris is not listed: radaris.com was transferred by court order and no longer has a removal page.
 export const BROKER_SITES: BrokerSite[] = [
   { id: "spokeo", name: "Spokeo", domain: "spokeo.com", method: "form", optoutUrl: "https://www.spokeo.com/optout", expects: ["listing link", "email check", "robot check"] },
   { id: "whitepages", name: "Whitepages", domain: "whitepages.com", method: "form", optoutUrl: "https://www.whitepages.com/suppression-requests", expects: ["listing link", "phone call"] },
   { id: "beenverified", name: "BeenVerified", domain: "beenverified.com", method: "form", optoutUrl: "https://www.beenverified.com/app/optout/search", expects: ["email check"] },
-  { id: "radaris", name: "Radaris", domain: "radaris.com", method: "form", optoutUrl: "https://radaris.com/control/privacy", expects: ["listing link", "email check"] },
   { id: "truepeoplesearch", name: "TruePeopleSearch", domain: "truepeoplesearch.com", method: "form", optoutUrl: "https://www.truepeoplesearch.com/removal", expects: ["robot check", "email check"] },
   { id: "fastpeoplesearch", name: "FastPeopleSearch", domain: "fastpeoplesearch.com", method: "form", optoutUrl: "https://www.fastpeoplesearch.com/removal", expects: ["robot check", "email check"] },
 ];
@@ -80,9 +80,10 @@ export const SETTINGS_SITES: SettingsSite[] = [
     id: "linkedin-email",
     name: "LinkedIn",
     platform: "linkedin",
-    startUrl: "https://www.linkedin.com/mypreferences/d/profile-email-visibility",
+    startUrl: "https://www.linkedin.com/psettings/privacy/email",
     hosts: ["linkedin.com"],
-    goal: "Set who can see or download the email address to 'Only you' (or the most private option) and save.",
+    goal:
+      "Set who can see or download the email address to 'Only visible to me' (or the most private option) and save. If this page is not that setting, open https://www.linkedin.com/mypreferences/d/categories/profile-visibility and click 'Who can see or download your email address'.",
   },
   {
     id: "x-protect",
@@ -98,7 +99,7 @@ export const SETTINGS_SITES: SettingsSite[] = [
     platform: "tiktok",
     startUrl: "https://www.tiktok.com/setting/privacy",
     hosts: ["tiktok.com"],
-    goal: "Turn on 'Private account' and confirm.",
+    goal: "Turn on 'Private account' (under Privacy) and confirm. If this page does not show the settings, open https://www.tiktok.com/setting and find Privacy there.",
   },
   {
     id: "github-email",
@@ -160,6 +161,22 @@ export function profileTask(s: ProfileSite, listingUrl: string): CleanupTask {
     hosts: [s.domain],
     goal: s.goal,
   };
+}
+
+/** The https form of a listing link on one of these hosts (scans sometimes return http links), or null. */
+export function siteUrl(url: string, hosts: string[]): string | null {
+  try {
+    const u = new URL(url.trim());
+    if (u.protocol === "http:" && !u.port) u.protocol = "https:";
+    return allowedUrl(u.href, hosts) ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Every host the agent may work on. The extension's AGENT_HOSTS and host_permissions must cover these. */
+export function agentHosts(): string[] {
+  return [...new Set([...BROKER_SITES.map((b) => b.domain), ...SETTINGS_SITES.flatMap((s) => s.hosts), ...PROFILE_SITES.map((p) => p.domain)])];
 }
 
 export function allowedUrl(url: string, hosts: string[]): boolean {

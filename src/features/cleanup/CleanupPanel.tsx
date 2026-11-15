@@ -152,6 +152,7 @@ function AgentRun({
   const [githubDone, setGithubDone] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const live = useRef<Hands | null>(null);
 
   const details = useMemo(() => detailsFrom(fix, findings, name, email), [fix, findings, name, email]);
   const task = useMemo(() => taskFor(taskId, details.listingUrl), [taskId, details.listingUrl]);
@@ -176,6 +177,8 @@ function AgentRun({
       alive = false;
       stopHello();
       abort.current?.abort();
+      // Take down a question still showing in the site tab so it can't be approved later.
+      void live.current?.answer?.("stop");
     };
   }, [mode]);
 
@@ -185,7 +188,10 @@ function AgentRun({
   }
 
   async function start() {
-    if (!task) return;
+    if (!task) {
+      setSay(`I can't open this page for you. Use the link in the steps above to open ${site} yourself.`);
+      return;
+    }
     if (handsKind === "extension" && !ext) {
       setSay("Reload this page after installing the extension, then press Check again.");
       return;
@@ -202,6 +208,7 @@ function AgentRun({
       }
     }
     abort.current?.abort();
+    void live.current?.answer?.("stop");
     const ac = new AbortController();
     abort.current = ac;
     setPhase("running");
@@ -237,14 +244,8 @@ function AgentRun({
           setAsk(null);
           return choice;
         }
-        // Extension shows its own bar; still show the question here so the student sees it.
-        setAsk({
-          text,
-          buttons,
-          resolve: () => {
-            /* choice comes from the tab */
-          },
-        });
+        // Extension shows its own bar; the same buttons here answer it too.
+        setAsk({ text, buttons, resolve: (id) => void hands.answer?.(id) });
         const choice = await hands.ask(text, buttons);
         setAsk(null);
         setPhase("running");
@@ -262,6 +263,7 @@ function AgentRun({
       if (e.type === "log") setLog((prev) => [...prev, { text: e.text, ok: e.ok }].slice(-12));
     };
 
+    live.current = wrapped;
     try {
       const result = await runTask({
         task,
@@ -289,6 +291,7 @@ function AgentRun({
       }
     } finally {
       await wrapped.finish().catch(() => {});
+      if (live.current === wrapped) live.current = null;
     }
   }
 
@@ -300,6 +303,9 @@ function AgentRun({
 
   function stop() {
     abort.current?.abort();
+    ask?.resolve("stop");
+    void live.current?.answer?.("stop");
+    setAsk(null);
     setPhase("done");
     setSay("Stopped.");
   }
@@ -444,13 +450,15 @@ function detailsFrom(fix: Fix, findings: Finding[], name: string, email: string)
     cityPart = c;
     statePart = s;
   }
+  // A settings fix links to a help article, not a listing. Anything the step route would reject is left out.
+  const listing = fix.optout?.listingUrl || (fix.kind === "takedown" ? fix.link : undefined);
   return {
     name,
     email,
     city: cityPart?.slice(0, 60),
     state: statePart?.slice(0, 40),
     age: age || undefined,
-    listingUrl: fix.optout?.listingUrl || fix.link,
+    listingUrl: listing && listing.length <= 500 && URL.canParse(listing) ? listing : undefined,
   };
 }
 

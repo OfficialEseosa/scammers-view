@@ -1,9 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildRawEmail, confirmationLinks, pickPrivacyEmail } from "./mail";
-import { BROKER_SITES, allowedUrl, brokerForUrl, brokerTask } from "./sites";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { BROKER_SITES, PROFILE_SITES, SETTINGS_SITES, agentHosts, allowedUrl, brokerForUrl, brokerTask, siteUrl } from "./sites";
 import { cleanupForFix, taskFor } from "./tasks";
-import { validateAction, buildPrompt } from "./step";
+import { validateAction, buildPrompt, robotCheckBlocks } from "./step";
 import { addLog, clearLog, logOwner, readLog, __clearCleanupLogForTests } from "./log";
 import type { Fix } from "@/lib/fixes/types";
 import type { CleanupTask, Details, PageSnapshot } from "./types";
@@ -177,4 +180,79 @@ test("taskFor profile requires a listing URL on that site", () => {
   assert.equal(t!.kind, "settings");
   assert.equal(t!.startUrl, "https://www.wayup.com/profile/alex");
   assert.deepEqual(t!.hosts, ["wayup.com"]);
+});
+
+test("the extension's allow-lists cover every host the agent's tasks use", async () => {
+  const ext = path.join(process.cwd(), "extension");
+  const manifest = JSON.parse(readFileSync(path.join(ext, "manifest.json"), "utf8")) as { host_permissions: string[] };
+  const shared = (await import(pathToFileURL(path.join(ext, "shared.js")).href)) as {
+    AGENT_HOSTS: string[];
+    agentAllowed: (url: string, hosts?: string[]) => boolean;
+  };
+  const hosts = agentHosts();
+  assert.deepEqual([...shared.AGENT_HOSTS].sort(), [...hosts].sort());
+  for (const h of hosts) assert.ok(manifest.host_permissions.includes(`https://*.${h}/*`), `manifest is missing https://*.${h}/*`);
+
+  const tasks = [
+    ...BROKER_SITES.map((b) => taskFor(`broker:${b.id}`)),
+    ...SETTINGS_SITES.map((s) => taskFor(`settings:${s.id}`)),
+    ...PROFILE_SITES.map((p) => taskFor(`profile:${p.id}`, `https://www.${p.domain}/someone`)),
+  ];
+  for (const t of tasks) {
+    assert.ok(t);
+    assert.ok(allowedUrl(t.startUrl, t.hosts), `${t.id} starts outside its own hosts`);
+    assert.ok(shared.agentAllowed(t.startUrl, t.hosts), `the extension refuses to open ${t.id}`);
+  }
+});
+
+test("a profile fix with an http or bare-domain link still gets a task that can run", () => {
+  assert.equal(siteUrl("http://www.wayup.com/profile/alex", ["wayup.com"]), "https://www.wayup.com/profile/alex");
+  assert.equal(siteUrl("https://wayup.com/profile/alex", ["wayup.com"]), "https://wayup.com/profile/alex");
+  assert.equal(siteUrl("http://evil.example/wayup.com", ["wayup.com"]), null);
+  assert.equal(siteUrl("not a url", ["wayup.com"]), null);
+
+  const fix = {
+    id: "fix:takedown:wayup-com",
+    kind: "takedown",
+    title: "Take Employer off wayup.com",
+    why: "",
+    steps: [],
+    removesFindingIds: [],
+    scoreDrop: 0,
+    breaksChainIds: [],
+    effort: "15 min",
+    link: "http://www.wayup.com/profile/alex",
+  } as Fix;
+  const help = cleanupForFix(fix);
+  assert.equal(help?.taskId, "profile:wayup");
+  const t = taskFor(help!.taskId, fix.link);
+  assert.equal(t?.startUrl, "https://www.wayup.com/profile/alex");
+});
+
+test("no button for a broker the agent has no removal page for", () => {
+  const radaris = {
+    id: "fix:broker:radaris-com",
+    kind: "broker",
+    title: "Get removed from Radaris",
+    why: "",
+    steps: [],
+    removesFindingIds: ["f1"],
+    scoreDrop: 1,
+    breaksChainIds: [],
+    effort: "15 min",
+    optout: { broker: "Radaris", listingUrl: "https://radaris.com/p/Alex/Rivera/", findingIds: ["f1"] },
+  } as Fix;
+  assert.equal(cleanupForFix(radaris), null);
+});
+
+test("robotCheckBlocks: only a robot check with nothing else to do stops the agent", () => {
+  const wall: PageSnapshot = { url: "https://www.spokeo.com/optout", title: "Just a moment...", text: "Verifying you are human", captcha: true, elements: [] };
+  assert.equal(robotCheckBlocks(wall, []), true);
+  // A check that sits inside the form: fill the form first, the model decides when to hand over.
+  assert.equal(robotCheckBlocks({ ...page, captcha: true }, []), false);
+  // A challenge page that keeps the site's search box still blocks.
+  assert.equal(robotCheckBlocks({ ...page, title: "Captcha Challenge - Example", captcha: true }, []), true);
+  // The student just said they solved it: don't ask again without looking.
+  assert.equal(robotCheckBlocks(wall, ["The student handled this themselves: Spokeo wants to check you're not a robot."]), false);
+  assert.equal(robotCheckBlocks({ ...wall, captcha: false }, []), false);
 });

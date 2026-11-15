@@ -10,11 +10,25 @@
   const SKIP_TYPES = new Set(["password", "hidden", "file"]);
   const MAX_ELEMENTS = 150;
 
-  function visible(el) {
+  function shown(el) {
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) return false;
     const s = getComputedStyle(el);
     return s.visibility !== "hidden" && s.display !== "none" && Number(s.opacity) > 0.05;
+  }
+
+  function isToggle(el) {
+    return el.tagName === "INPUT" && ["checkbox", "radio"].includes((el.type || "").toLowerCase());
+  }
+
+  /** What the student actually sees for a control. Styled switches hide the real checkbox (see-through or 1px) and draw their own. */
+  function face(el) {
+    if (!isToggle(el) || shown(el)) return el;
+    return (el.labels && [...el.labels].find(shown)) || el.closest("label") || el.parentElement || el;
+  }
+
+  function visible(el) {
+    return shown(face(el));
   }
 
   function clean(s, n) {
@@ -29,17 +43,33 @@
       const t = by.split(/\s+/).map((id) => document.getElementById(id)?.innerText || "").join(" ");
       if (t.trim()) return clean(t, 120);
     }
-    if (el.labels && el.labels.length) return clean([...el.labels].map((l) => l.innerText).join(" "), 120);
-    const own = el.innerText || el.value || el.placeholder || el.title || el.alt || el.name || "";
-    return clean(own || el.placeholder, 120);
+    if (el.labels && el.labels.length) {
+      const t = clean([...el.labels].map((l) => l.innerText).join(" "), 120);
+      if (t) return t;
+    }
+    const own = el.innerText || (isToggle(el) ? "" : el.value) || el.placeholder || el.title || el.alt || "";
+    if (own.trim()) return clean(own, 120);
+    // A switch with no label of its own: use the row it sits in.
+    if (isToggle(el) || el.getAttribute("role") === "switch") {
+      let row = el.parentElement;
+      for (let up = 0; row && row !== document.body && up < 5; up++, row = row.parentElement) {
+        const t = clean(row.innerText, 120);
+        if (t) return t;
+      }
+    }
+    return clean(el.name, 120);
   }
 
   function captchaPresent() {
-    if (document.querySelector("iframe[src*='recaptcha'],iframe[src*='hcaptcha'],iframe[src*='turnstile'],iframe[src*='challenges.cloudflare'],#challenge-form,.g-recaptcha,.h-captcha,.cf-turnstile")) {
-      return true;
+    // Only checks the student can see. The invisible reCAPTCHA badge sits on every page of many sites and needs nothing from them.
+    const marks = document.querySelectorAll(
+      "iframe[src*='recaptcha'],iframe[src*='hcaptcha'],iframe[src*='turnstile'],iframe[src*='challenges.cloudflare'],#challenge-form,.g-recaptcha,.h-captcha,.cf-turnstile,#px-captcha",
+    );
+    for (const m of marks) {
+      if (!m.closest(".grecaptcha-badge") && shown(m)) return true;
     }
-    const t = (document.body?.innerText || "").slice(0, 2000).toLowerCase();
-    return /verify you are human|are you a robot|i'm not a robot|checking your browser|press and hold/.test(t);
+    const t = `${document.title} ${(document.body?.innerText || "").slice(0, 2000)}`.toLowerCase();
+    return /verify(ing)? (that )?you are (a )?human|are you a robot|i'm not a robot|checking your browser|press and hold|just a moment[.]{3}|captcha challenge|security challenge|human verification/.test(t);
   }
 
   function snapshot() {
@@ -53,7 +83,7 @@
       if (el.tagName === "INPUT" && SKIP_TYPES.has(type)) continue;
       if (el.disabled || !visible(el)) continue;
       el.setAttribute("data-svx", String(i));
-      const item = { i, tag: el.tagName.toLowerCase(), label: labelOf(el) };
+      const item = { i, tag: el.tagName.toLowerCase().slice(0, 20), label: labelOf(el) };
       if (type) item.type = type.slice(0, 20);
       const role = el.getAttribute("role");
       if (role) item.role = role.slice(0, 20);
@@ -128,8 +158,9 @@
     if (index === undefined || index === null) return;
     const el = find(index);
     if (!el) return;
-    el.scrollIntoView({ block: "center", behavior: "instant" });
-    const r = el.getBoundingClientRect();
+    const seen = face(el);
+    seen.scrollIntoView({ block: "center", behavior: "instant" });
+    const r = seen.getBoundingClientRect();
     ring = document.createElement("div");
     ring.className = "svx-agent-ring";
     Object.assign(ring.style, {
@@ -193,12 +224,26 @@
     }
   }
 
+  let pending = null;
+
+  /** Answers the open question from outside the page (the app's own buttons, or Stop). */
+  function answer(id) {
+    if (!pending) return false;
+    const done = pending;
+    pending = null;
+    bar?.remove();
+    bar = null;
+    done(id);
+    return true;
+  }
+
   /** Shows a bar at the top of the page; resolves with the button the student pressed. */
   function ask(text, buttons) {
     bar?.remove();
     // Keep the bottom HUD as a step log; don't duplicate the full ask text there.
     status("Waiting for you…", text);
     return new Promise((resolve) => {
+      pending = resolve;
       bar = document.createElement("div");
       bar.className = "svx-agent-bar";
       bar.setAttribute("role", "dialog");
@@ -220,6 +265,7 @@
         btn.textContent = b.label;
         btn.style.cssText = `font:inherit;font-weight:600;min-height:38px;padding:0 14px;border-radius:10px;cursor:pointer;border:1px solid #555;${b.primary ? "background:#fff;color:#000" : "background:transparent;color:#fff"}`;
         btn.addEventListener("click", () => {
+          if (pending === resolve) pending = null;
           bar?.remove();
           bar = null;
           resolve(b.id);
@@ -234,9 +280,9 @@
     ring?.remove();
     bar?.remove();
     hud?.remove();
-    ring = bar = hud = hudCurrent = hudLog = null;
+    ring = bar = hud = hudCurrent = hudLog = pending = null;
     recent.length = 0;
   }
 
-  window.__svxAgent = { snapshot, act, highlight, ask, status, clearUi };
+  window.__svxAgent = { snapshot, act, highlight, ask, answer, status, clearUi };
 })();

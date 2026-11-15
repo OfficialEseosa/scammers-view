@@ -29,7 +29,7 @@ Each turn you get: the goal, the student's approved details, the page (url, titl
 - select {index, text}: choose the dropdown option whose label best matches text (an approved value, e.g. the state).
 - goto {url}: open a page on the same site (e.g. the opt-out page linked in the footer, or Edit profile).
 - done: the goal is reached (request received / confirmation email sent / setting is on / public details removed or hidden).
-- needs_user: a robot check, a phone call, an ID upload, a sign-in, or anything you are unsure about. Say exactly what the student should do.
+- needs_user: a robot check that blocks the next step, a phone call, an ID upload, a sign-in, or anything you are unsure about. Say exactly what the student should do.
 - not_found: the site has no listing that clearly matches the student's name AND location.
 - fail: the site cannot be used this way.
 
@@ -74,7 +74,9 @@ export function buildPrompt({ task, details, page, history }: StepInput): string
     `<page>`,
     `URL: ${page.url}`,
     `Title: ${page.title}`,
-    page.captcha ? "A robot check (captcha) is on this page." : "",
+    page.captcha
+      ? "A robot check (captcha) is on this page. Fill in the rest of the form first. Use needs_user only when the robot check is what blocks the next step and the student has not just solved it."
+      : "",
     `Elements:\n${els || "(none)"}`,
     `Visible text:\n${page.text}`,
     `</page>`,
@@ -125,13 +127,41 @@ export function validateAction(raw: z.infer<typeof ModelAction>, input: StepInpu
   }
 }
 
+const HANDLED = "The student handled this themselves:";
+const FILLABLE = new Set(["text", "email", "url", "tel", "search", "number", ""]);
+const CHALLENGE_TITLE = /captcha|security challenge|just a moment|human verification|attention required/i;
+
+/**
+ * True when a robot check is all the page offers (an interstitial), so the student has to
+ * solve it before anything else. A check that sits inside a form next to fields to fill, or
+ * one the student just dealt with, goes to the model instead; otherwise every step would ask again.
+ */
+export function robotCheckBlocks(page: PageSnapshot, history: string[]): boolean {
+  if (!page.captcha) return false;
+  if (history[history.length - 1]?.startsWith(HANDLED)) return false;
+  if (CHALLENGE_TITLE.test(page.title)) return true;
+  return !page.elements.some((e) => e.tag === "select" || e.tag === "textarea" || (e.tag === "input" && FILLABLE.has(e.type ?? "")));
+}
+
+function hostName(url: string): string {
+  try {
+    return new URL(url).hostname || "another page";
+  } catch {
+    return "another page";
+  }
+}
+
 export async function nextStep(input: StepInput, signal?: AbortSignal): Promise<AgentAction> {
   if (input.history.length >= MAX_STEPS) return { action: "needs_user", say: "This is taking too many steps. Please finish it yourself.", submits: false };
   if (!allowedUrl(input.page.url, input.task.hosts)) {
-    return { action: "needs_user", say: "This tab left the site I was working on, so I stopped.", submits: false };
+    return {
+      action: "needs_user",
+      say: `The tab is on ${hostName(input.page.url)}, not ${input.task.site}. Go back to ${input.task.site} in that tab, then press "I did it, continue".`,
+      submits: false,
+    };
   }
-  if (input.page.captcha) {
-    return { action: "needs_user", say: `${input.task.site} wants to check you're not a robot. Please solve it, then press Continue.`, submits: false };
+  if (robotCheckBlocks(input.page, input.history)) {
+    return { action: "needs_user", say: `${input.task.site} wants to check you're not a robot. Please solve it, then press "I did it, continue".`, submits: false };
   }
   const raw = await generateJson({
     model: process.env.GEMINI_MODEL_CLEANUP?.trim() || MODELS.fast,
