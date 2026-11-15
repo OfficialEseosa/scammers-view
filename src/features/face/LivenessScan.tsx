@@ -237,7 +237,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
         if (shown < MIN_VERIFY_MS) await new Promise((res) => setTimeout(res, MIN_VERIFY_MS - shown));
         if (runId !== runIdRef.current) return;
         if (!f) {
-          fail("We couldn't read your face", "Face a light source, hold the phone at eye level, and try again.");
+          fail("We couldn't read your face", "Face a light source and hold the camera at eye level. If your glasses catch a glare, take them off, then try again.");
           return;
         }
         if (!l || !r) {
@@ -544,6 +544,7 @@ export function LivenessScan({ onComplete, onFail, className }: LivenessScanProp
               <>
                 <FaceGlyph />
                 <p className="max-w-[24ch] text-lg">Look at the camera, then turn your head when asked</p>
+                <p className="max-w-[30ch] text-sm text-muted">Glasses can stay on. Take off sunglasses, hats and masks.</p>
               </>
             )}
             {stage.kind === "starting" && <ScanLoader step={stage.step} message={stage.message} />}
