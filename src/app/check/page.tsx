@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { CheckScreen } from "@/components/CheckScreen";
-import { getScanSubject, getSessionSubject } from "@/lib/auth/subject";
-import { gmailConfigured } from "@/lib/gmail/oauth";
+import { getScanSubject } from "@/lib/auth/subject";
 
 export const metadata = { title: "Is this a scam? - Scammer's View" };
 
@@ -17,7 +16,6 @@ export default function CheckPage() {
 
 async function Signed() {
   await connection();
-  const [subject, session] = await Promise.all([getScanSubject(), getSessionSubject()]);
-  // Gmail needs a real Google sign-in, never the development stand-in.
-  return <CheckScreen signedIn={Boolean(subject)} gmail={Boolean(session) && gmailConfigured()} />;
+  const subject = await getScanSubject();
+  return <CheckScreen signedIn={Boolean(subject)} />;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { GMAIL_PROMISE, GmailButton, ScamCheck } from "@/features/check";
+import { ScamCheck } from "@/features/check";
 import { BrandMark } from "@/design/BrandMark";
 import { ThemeToggle } from "@/design/ThemeToggle";
 import { DotField, Grain } from "@/design/backgrounds";
@@ -24,7 +24,7 @@ function readShared(): Shared | null {
 }
 const noSubscribe = () => () => {};
 
-export function CheckScreen({ signedIn, gmail }: { signedIn: boolean; gmail: boolean }) {
+export function CheckScreen({ signedIn }: { signedIn: boolean }) {
   const fromShare = useSyncExternalStore(noSubscribe, readShared, () => null);
 
   useEffect(() => {
@@ -44,12 +44,6 @@ export function CheckScreen({ signedIn, gmail }: { signedIn: boolean; gmail: boo
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 pb-16 sm:px-8">
         <InstallHint />
         {fromShare?.note && <WarnNote>{NOTE[fromShare.note]}</WarnNote>}
-        {gmail && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-edge bg-surface p-4">
-            <GmailButton />
-            <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
-          </div>
-        )}
         <ScamCheck key={fromShare?.text ?? "blank"} initialText={fromShare?.text} />
         <p className="border-t border-edge pt-8 text-muted">
           Scammers use what they can find about you.{" "}

@@ -16,7 +16,6 @@
     "test:search": "tsx --test src/lib/search/search.test.ts",
     "test:check": "tsx --test src/lib/check/check.test.ts",
     "test:reputation": "tsx --test src/lib/reputation/reputation.test.ts",
-    "test:gmail": "tsx --test src/lib/gmail/gmail.test.ts",
     "test:cleanup": "tsx --test src/lib/cleanup/cleanup.test.ts",
     "test:places": "tsx --test src/lib/places/places.test.ts",
     "ci": "npm run lint && npm run typecheck && npm test"

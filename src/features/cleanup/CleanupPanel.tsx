@@ -8,7 +8,7 @@ import { Card } from "@/design/Card";
 import { LoadingDots } from "@/design/LoadingDots";
 import { WarnNote } from "@/design/states";
 import { BROKER_SITES } from "@/lib/cleanup/sites";
-import { mailtoHref } from "@/lib/fixes/optout";
+import { mailtoHref, templateDraft } from "@/lib/fixes/optout";
 import { cleanupForFix, taskFor, type CleanupMode } from "@/lib/cleanup/tasks";
 import type { Details } from "@/lib/cleanup/types";
 import { callExtension, detectExtension, extensionHands, onExtensionHello, serverBrowserAvailable, serverHands, type AskButton, type Hands } from "./hands";
@@ -79,7 +79,7 @@ function Panel({
     return (
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button variant="primary" onClick={() => setOpen(true)}>
-          {help.mode === "prepare" ? "Prepare this for me" : help.mode === "site-email" ? "Email the site for me" : "Clean this up for me"}
+          {help.mode === "prepare" ? "Prepare this for me" : help.mode === "site-email" ? "Draft the email for me" : "Clean this up for me"}
         </Button>
         <span className="text-sm text-muted">
           {help.mode === "settings"
@@ -91,7 +91,7 @@ function Panel({
             : help.mode === "prepare"
               ? "Opens the page and suggests what to enter. You make the change."
               : help.mode === "site-email"
-                ? "Finds the site's contact address and writes the request. You approve it before it sends."
+                ? "Finds the site's contact address and writes the request. You send it yourself."
               : "Asks before every submit. Never stores passwords."}
         </span>
       </div>
@@ -154,7 +154,6 @@ function AgentRun({
   const [image, setImage] = useState<string>("");
   const [log, setLog] = useState<{ text: string; ok: boolean }[]>([]);
   const [ask, setAsk] = useState<{ text: string; buttons: AskButton[]; resolve: (id: string) => void } | null>(null);
-  const [gmailOn, setGmailOn] = useState(false);
   const [githubDone, setGithubDone] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -162,7 +161,6 @@ function AgentRun({
 
   const details = useMemo(() => detailsFrom(fix, findings, name, email), [fix, findings, name, email]);
   const task = useMemo(() => taskFor(taskId, details.listingUrl), [taskId, details.listingUrl]);
-  const broker = useMemo(() => (taskId.startsWith("broker:") ? BROKER_SITES.find((b) => b.id === taskId.slice(7)) : undefined), [taskId]);
   const handsKind: "extension" | "server" =
     handsChoice ?? (mode === "settings" || ext ? "extension" : serverOk ? "server" : "extension");
 
@@ -291,10 +289,6 @@ function AgentRun({
           }).catch(() => {});
         }
       }
-      if (result.outcome === "done" && gmailOn && broker) {
-        setSay("Looking in your Gmail for a confirmation link…");
-        await clickConfirmations(broker.id, wrapped);
-      }
     } finally {
       await wrapped.finish().catch(() => {});
       if (live.current === wrapped) live.current = null;
@@ -356,16 +350,6 @@ function AgentRun({
             </Button>
           </span>
         </WarnNote>
-      )}
-
-      {mode === "broker-form" && (
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={gmailOn} onChange={(e) => setGmailOn(e.target.checked)} className="mt-1" />
-          <span>
-            After submitting, look in my Gmail for a confirmation link and open it (asks permission once).{" "}
-            {gmailOn && <GmailConnect />}
-          </span>
-        </label>
       )}
 
       <DetailsPreview details={details} />
@@ -510,50 +494,134 @@ async function logOutcome(site: string, taskId: string, outcome: string, note: s
   }).catch(() => {});
 }
 
-function GmailConnect() {
-  const [status, setStatus] = useState<"unknown" | "off" | "on">("unknown");
-  useEffect(() => {
-    void fetch("/api/cleanup/mail", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "status" }) })
-      .then((r) => r.json())
-      .then((d: { connected?: boolean }) => setStatus(d.connected ? "on" : "off"))
-      .catch(() => setStatus("off"));
-    const onMsg = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.data?.svx !== "gmail") return;
-      setStatus(e.data.result === "ok" || e.data.result === "" ? "on" : "off");
-    };
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, []);
-  if (status === "on") return <span className="text-safe-fg">Gmail connected for this cleanup.</span>;
+/* ------------------------------ ready-made removal email ------------------------------ */
+
+/*
+ * Nothing is sent from the app and it has no access to anyone's mailbox. These
+ * cards hand over a finished email (address, subject, message) to copy or to
+ * open in the person's own email app.
+ */
+
+type Contact = { address: string; page: string; sameSite: boolean };
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [done, setDone] = useState(false);
   return (
     <button
       type="button"
-      className="underline underline-offset-4"
-      onClick={() => window.open("/api/gmail/connect?purpose=cleanup", "sv-gmail", "width=520,height=720")}
+      disabled={!text}
+      className="sv-press min-h-9 rounded-full border border-edge px-3 text-sm font-medium text-muted hover:border-fg hover:text-fg disabled:opacity-40"
+      onClick={() => {
+        void navigator.clipboard
+          ?.writeText(text)
+          .then(() => {
+            setDone(true);
+            window.setTimeout(() => setDone(false), 1400);
+          })
+          .catch(() => {});
+      }}
     >
-      Connect Gmail once
+      {done ? "Copied" : label}
     </button>
   );
 }
 
-async function clickConfirmations(brokerId: string, hands: Hands) {
-  const res = await fetch("/api/cleanup/mail", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ op: "confirm", brokerId }),
-  });
-  const data = (await res.json().catch(() => ({}))) as { links?: { url: string; subject: string }[]; error?: string };
-  if (!res.ok || !data.links?.length) return;
-  for (const link of data.links.slice(0, 2)) {
-    const ok = await hands.visit(link.url);
-    if (ok) {
-      await logOutcome(brokerId, `broker:${brokerId}`, "confirmed", `Opened confirmation link from “${link.subject}”.`);
-    }
-  }
+function DraftCard({
+  site,
+  from,
+  to,
+  setTo,
+  subject,
+  setSubject,
+  body,
+  setBody,
+  loading,
+  note,
+  children,
+  onDone,
+  onClose,
+}: {
+  site: string;
+  from: string;
+  to: string;
+  setTo: (v: string) => void;
+  subject: string;
+  setSubject: (v: string) => void;
+  body: string;
+  setBody: (v: string) => void;
+  loading?: string;
+  note?: React.ReactNode;
+  children?: React.ReactNode;
+  onDone?: () => void;
+  onClose: () => void;
+}) {
+  const [marked, setMarked] = useState(false);
+  const ready = Boolean(to.trim() && subject.trim() && body.trim());
+  const input = "mt-1 w-full rounded-control border border-edge bg-surface px-3 py-2";
+  const row = "flex items-end gap-2";
+  return (
+    <Card className="mt-4 flex flex-col gap-3">
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-lg font-semibold">Removal request for {site}</p>
+          <p className="text-sm text-muted">Ready to send from your own email. Nothing is sent from here.</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      </header>
+      {loading && (
+        <p className="flex items-center gap-2 text-sm text-muted" role="status">
+          <LoadingDots /> {loading}
+        </p>
+      )}
+      {note}
+      {children}
+      <div className={row}>
+        <label className="min-w-0 flex-1 text-sm">
+          To
+          <input type="email" value={to} onChange={(e) => setTo(e.target.value)} className={input} />
+        </label>
+        <CopyButton text={to.trim()} label="Copy" />
+      </div>
+      <div className={row}>
+        <label className="min-w-0 flex-1 text-sm">
+          Subject
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} className={input} />
+        </label>
+        <CopyButton text={subject} label="Copy" />
+      </div>
+      <label className="text-sm">
+        Message
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={11} className={`${input} font-mono text-xs leading-relaxed`} />
+      </label>
+      <p className="text-sm text-muted">Send it from {from} so the site can reply to you.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {ready ? (
+          <a href={mailtoHref({ subject, body }, to.trim())} className={buttonClass("primary", "md")}>
+            Open in my email app
+          </a>
+        ) : (
+          <Button disabled>Open in my email app</Button>
+        )}
+        <CopyButton text={body} label="Copy message" />
+        <CopyButton text={`To: ${to.trim()}\nSubject: ${subject}\n\n${body}`} label="Copy all" />
+        <Button
+          variant="secondary"
+          disabled={marked || !ready}
+          onClick={() => {
+            setMarked(true);
+            onDone?.();
+          }}
+        >
+          {marked ? "Marked as sent" : "I sent it"}
+        </Button>
+      </div>
+    </Card>
+  );
 }
 
-/* ------------------------------ email-only removal ------------------------------ */
-
+/** A data broker with a known privacy inbox: the address and text come from our list. */
 function EmailRemoval({
   fix,
   findings,
@@ -572,75 +640,35 @@ function EmailRemoval({
   onClose: () => void;
 }) {
   const broker = BROKER_SITES.find((b) => b.name.toLowerCase() === fix.optout?.broker.toLowerCase());
-  const fields = findings
-    .filter((f) => fix.optout?.findingIds.includes(f.id))
-    .map((f) => ({ label: f.label, value: f.value }))
-    .slice(0, 8);
-  const [to, setTo] = useState(broker?.email ?? `privacy@${broker?.domain ?? "example.com"}`);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-
-  async function send() {
-    setBusy(true);
-    setMsg("");
-    try {
-      const res = await fetch("/api/cleanup/mail", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          op: "send",
-          to,
-          broker: fix.optout!.broker,
-          listingUrl: fix.optout!.listingUrl,
-          fields: fields.length ? fields : [{ label: "Name", value: name }],
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setMsg(data.error || "Couldn't send.");
-        return;
-      }
-      setMsg(`Sent from ${email}. Check your Sent folder.`);
-      onDone?.();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const draft = useMemo(() => {
+    const rows = findings
+      .filter((f) => fix.optout?.findingIds.includes(f.id))
+      .map((f) => ({ label: f.label, value: f.value }))
+      .slice(0, 8);
+    return templateDraft({ name, email, broker: fix.optout!.broker, listingUrl: fix.optout!.listingUrl, fields: rows.length ? rows : [{ label: "Name", value: name }] });
+  }, [findings, fix.optout, name, email]);
+  const [to, setTo] = useState(broker?.email ?? "");
+  const [subject, setSubject] = useState(draft.subject);
+  const [body, setBody] = useState(draft.body);
 
   return (
-    <Card className="mt-4 flex flex-col gap-3">
-      <header className="flex items-start justify-between gap-3">
-        <p className="font-display text-lg font-semibold">Email {site} a removal request</p>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
-      </header>
-      <p className="text-sm text-muted">
-        You approve the address and the text; we send it from your Gmail and forget the access afterwards.
-      </p>
-      <GmailConnect />
-      <label className="text-sm">
-        To
-        <input value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 w-full rounded-control border border-edge bg-surface px-3 py-2" />
-      </label>
-      <p className="text-sm text-muted">From: {email}</p>
-      <Button disabled={busy} onClick={() => void send()}>
-        {busy ? "Sending…" : "Send removal email"}
-      </Button>
-      {msg && <p className="text-sm">{msg}</p>}
-    </Card>
+    <DraftCard
+      site={site}
+      from={email}
+      to={to}
+      setTo={setTo}
+      subject={subject}
+      setSubject={setSubject}
+      body={body}
+      setBody={setBody}
+      note={!to && <WarnNote>We don&apos;t have a privacy address for {site}. Enter the one on its Privacy page.</WarnNote>}
+      onDone={onDone}
+      onClose={onClose}
+    />
   );
 }
 
-/* ------------------------------ email a site that is not a broker ------------------------------ */
-
-type Contact = { address: string; page: string; sameSite: boolean };
-
-async function mailOp<T>(body: unknown): Promise<{ ok: boolean; data: T & { error?: string } }> {
-  const res = await fetch("/api/cleanup/mail", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  return { ok: res.ok, data: (await res.json().catch(() => ({}))) as T & { error?: string } };
-}
-
+/** Any other site: the address comes from the site's own pages and the text from its own policy. */
 function SiteEmail({
   fix,
   findings,
@@ -664,115 +692,87 @@ function SiteEmail({
     return (rows.length ? rows : [{ label: "Name", value: name }]).slice(0, 8);
   }, [findings, fix.contact, name]);
 
-  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [basis, setBasis] = useState("");
+  const [policyUrl, setPolicyUrl] = useState("");
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    void mailOp<{ contacts?: Contact[] }>({ op: "contact", listingUrl }).then(({ data }) => {
-      if (!alive) return;
-      const list = data.contacts ?? [];
-      setContacts(list);
-      setTo((cur) => cur || list[0]?.address || "");
-    });
-    void mailOp<{ subject?: string; body?: string }>({ op: "draftSite", site, listingUrl, fields }).then(({ data }) => {
-      if (!alive) return;
-      setSubject((cur) => cur || data.subject || "");
-      setBody((cur) => cur || data.body || "");
-    });
+    void fetch("/api/cleanup/mail", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "draftSite", site, listingUrl, fields }) })
+      .then(async (res) => {
+        const d = (await res.json().catch(() => ({}))) as { to?: string; contacts?: Contact[]; subject?: string; body?: string; basis?: string; policyUrl?: string };
+        if (!alive) return;
+        if (!res.ok || !d.body) setFailed(true);
+        setContacts(d.contacts ?? []);
+        setBasis(d.basis ?? "");
+        setPolicyUrl(d.policyUrl ?? "");
+        setTo((cur) => cur || d.to || "");
+        setSubject((cur) => cur || d.subject || "");
+        setBody((cur) => cur || d.body || "");
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      })
+      .finally(() => {
+        if (alive) setLoaded(true);
+      });
     return () => {
       alive = false;
     };
   }, [listingUrl, site, fields]);
 
-  async function send() {
-    setBusy(true);
-    setMsg("");
-    try {
-      const { ok, data } = await mailOp({ op: "sendSite", to: to.trim(), site, listingUrl, fields, subject, body });
-      if (!ok) {
-        setMsg(data.error || "Couldn't send.");
-        return;
-      }
-      setSent(true);
-      setMsg(`Sent from ${email}. Check your Sent folder. Look at the page again in two weeks.`);
-      onDone?.();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const note = !loaded ? null : failed ? (
+    <WarnNote>We couldn&apos;t write this one. Use the steps below and the site&apos;s Contact page.</WarnNote>
+  ) : !to ? (
+    <WarnNote>No contact address found on {site}. Enter one from its Contact or Privacy page.</WarnNote>
+  ) : basis ? (
+    <p className="text-sm text-muted">
+      Based on {site}&apos;s own policy: {basis}{" "}
+      {policyUrl && (
+        <a href={policyUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-fg">
+          Read it
+        </a>
+      )}
+    </p>
+  ) : null;
 
-  const ready = to.trim() && subject.trim() && body.trim();
-  const input = "mt-1 w-full rounded-control border border-edge bg-surface px-3 py-2";
   return (
-    <Card className="mt-4 flex flex-col gap-3">
-      <header className="flex items-start justify-between gap-3">
-        <p className="font-display text-lg font-semibold">Email {site} a removal request</p>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
-      </header>
-      {contacts === null ? (
-        <p className="flex items-center gap-2 text-sm text-muted">
-          <LoadingDots /> Looking for a contact address on {site}
-        </p>
-      ) : contacts.length === 0 ? (
-        <WarnNote>No contact address found on {site}. Enter one from its Contact or Privacy page.</WarnNote>
-      ) : (
-        contacts.length > 1 && (
-          <div role="radiogroup" aria-label="Addresses found" className="flex flex-wrap gap-2">
-            {contacts.map((c) => (
-              <button
-                key={c.address}
-                type="button"
-                role="radio"
-                aria-checked={to === c.address}
-                onClick={() => setTo(c.address)}
-                className={`sv-press min-h-11 rounded-full border px-4 text-sm font-medium ${to === c.address ? "border-fg text-fg" : "border-edge text-muted hover:text-fg"}`}
-              >
-                {c.address}
-              </button>
-            ))}
-          </div>
-        )
+    <DraftCard
+      site={site}
+      from={email}
+      to={to}
+      setTo={setTo}
+      subject={subject}
+      setSubject={setSubject}
+      body={body}
+      setBody={setBody}
+      loading={loaded ? undefined : `Reading ${site} for its contact address and removal policy`}
+      note={note}
+      onDone={onDone}
+      onClose={onClose}
+    >
+      {contacts.length > 1 && (
+        <div role="radiogroup" aria-label="Addresses found" className="flex flex-wrap gap-2">
+          {contacts.map((c) => (
+            <button
+              key={c.address}
+              type="button"
+              role="radio"
+              aria-checked={to === c.address}
+              onClick={() => setTo(c.address)}
+              className={`sv-press min-h-11 rounded-full border px-4 text-sm font-medium ${to === c.address ? "border-fg text-fg" : "border-edge text-muted hover:text-fg"}`}
+            >
+              {c.address}
+            </button>
+          ))}
+        </div>
       )}
-      <label className="text-sm">
-        To
-        <input type="email" value={to} onChange={(e) => setTo(e.target.value)} className={input} />
-      </label>
-      <label className="text-sm">
-        Subject
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} className={input} />
-      </label>
-      <label className="text-sm">
-        Message
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={`${input} font-mono text-xs leading-relaxed`} />
-      </label>
-      <p className="text-sm text-muted">From: {email}</p>
-      <div className="text-sm">
-        <GmailConnect />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy || sent || !ready} onClick={() => void send()}>
-          {busy ? "Sending…" : sent ? "Sent" : "Send from my Gmail"}
-        </Button>
-        {ready && !sent && (
-          <a href={mailtoHref({ subject, body }, to.trim())} className={buttonClass("secondary", "md")}>
-            Open in my mail app
-          </a>
-        )}
-      </div>
-      {msg && (
-        <p className="text-sm" aria-live="polite">
-          {msg}
-        </p>
-      )}
-    </Card>
+    </DraftCard>
   );
 }
 

@@ -17,7 +17,6 @@ import { breachesToFindings } from "@/lib/breach/toFindings";
 import { FIXTURE_BREACHES } from "@/lib/breach/fixture";
 import { FindingFeed } from "@/components/scan/FindingFeed";
 import { QuickActions } from "@/components/session/QuickActions";
-import { GMAIL_PROMISE, GmailButton } from "@/features/check/GmailButton";
 import { HiddenNotMe, NotMeButton } from "@/components/scan/NotMe";
 import { AttackMapSlot, CheckSlot, FixListSlot, PhotoContextSlot, PhotoMatchesSlot, PlacesSlot, PracticeSlot, QuizSlot, VideoContextSlot, VoiceExposureSlot, VoiceSlot } from "@/components/session/slots";
 
@@ -136,10 +135,6 @@ export function Results() {
 
       <Panel id="check" active={tab} keep={visited}>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-8 sm:px-8">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-edge bg-surface p-4">
-            <GmailButton />
-            <p className="min-w-0 flex-1 text-sm text-muted">{GMAIL_PROMISE}</p>
-          </div>
           <CheckSlot />
         </div>
       </Panel>
