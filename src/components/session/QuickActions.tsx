@@ -40,7 +40,7 @@ export function QuickActions({
     },
     { id: "map", icon: "compass", label: "Open my web", hint: "3D map", run: () => onOpen("map") },
     { id: "voice", icon: "mic", label: "Check my voice", hint: videos ? `${videos} videos` : "Voicemail demo", run: () => onOpen("practice") },
-    { id: "breach", icon: "lock", label: "Check breaches", hint: "By email", run: () => onOpen("breach") },
+    { id: "places", icon: "pin", label: "Where I can be found", hint: "Map", run: () => onOpen("places") },
     { id: "rescan", icon: "bell", label: "Scan again", hint: "Fresh results", run: onRescan },
   ];
   return (

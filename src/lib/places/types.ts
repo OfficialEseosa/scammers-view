@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PlaceKind = z.enum(["home_area", "school", "work", "hangout", "event", "other"]);
+export const PlaceKind = z.enum(["home_area", "school", "work", "hangout", "event", "photo", "other"]);
 export type PlaceKind = z.infer<typeof PlaceKind>;
 
 export const PlaceCandidate = z.object({

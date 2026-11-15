@@ -87,9 +87,7 @@ export function Results() {
               photos={findings.filter((f) => f.category === "photo").length}
               videos={findings.filter((f) => f.category === "video").length}
             />
-            <RoomJoin findings={findings} />
             <FixListSlot findings={findings} chains={scan.chains} score={scan.score} masked={masked} onRemovedChange={s.setRemovedFindingIds} />
-            <FamilyNudge findings={findings} onOpen={() => go("family")} />
             <Overview findings={findings} />
             <SeeWhy onClick={seeWhy} className={unlocked ? "xl:hidden" : undefined} />
           </div>
@@ -444,7 +442,7 @@ function ResultsNav({ tab, unlocked, onTab, onUnlock }: { tab: ResultsTab; unloc
             };
           })}
         />
-        <MoreMenu items={more} active={inMore?.id} unlocked={unlocked} onPick={choose} />
+        {more.length > 0 && <MoreMenu items={more} active={inMore?.id} unlocked={unlocked} onPick={choose} />}
       </div>
     </nav>
   );

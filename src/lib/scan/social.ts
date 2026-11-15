@@ -220,6 +220,9 @@ interface Resolved {
 const DISCOVERY_USD = 0.04;
 
 /** Who the subject follows. Read from their OWN account only; the followed accounts are never scanned. */
+// Off by default: a bare list of followed accounts told the person nothing. It stays behind a
+// flag for the one use that matters later (finding someone through a relative's public list).
+const FOLLOWING_ENABLED = process.env.SCAN_FOLLOWING === "1";
 const FOLLOWING_MAX = 40;
 const FOLLOWING_USD = 0.05;
 const FOLLOWING_ACTOR: Record<"instagram" | "tiktok", string> = {
@@ -380,6 +383,10 @@ export async function runSocialSources(
             add({ category: "handle", label: `Link in ${spec.platform} bio`, value: l, riskWeight: 4 });
             ctx.reader.enqueue({ url: l, why: `link in the subject's ${spec.platform} bio`, depth: 0 });
           }
+          const postCount = n.posts.filter((x) => x.url).length;
+          if (postCount > 0) {
+            add({ category: "other", label: `Public ${NAMES[spec.platform]} posts`, value: `${postCount} recent posts anyone can read`, riskWeight: 4 });
+          }
           for (const post of n.posts.filter((x) => x.image && x.url).slice(0, MAX_POST_PHOTOS)) {
             add({ category: "photo", label: `Public ${spec.platform} post`, value: post.caption ? `Post: ${post.caption.slice(0, 80)}` : "Public post image", imageUrl: post.image, sourceUrl: post.url, confidence: 0.6, riskWeight: 3 });
           }
@@ -409,7 +416,7 @@ export async function runSocialSources(
             });
           }
           // Who they follow is public on the account: another way a stranger can reach or impersonate them.
-          if ((spec.platform === "instagram" || spec.platform === "tiktok") && spent + FOLLOWING_USD <= budget) {
+          if (FOLLOWING_ENABLED && (spec.platform === "instagram" || spec.platform === "tiktok") && spent + FOLLOWING_USD <= budget) {
             spent += FOLLOWING_USD;
             try {
               const follows = await fetchFollowing(spec.platform, handle, token!, ctx.signal);

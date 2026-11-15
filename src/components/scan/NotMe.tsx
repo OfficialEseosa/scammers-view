@@ -93,7 +93,7 @@ export function HiddenNotMe({ masked, className }: { masked: boolean; className?
         Hidden as not me ({notMe.length})
       </summary>
       <div className="border-t border-edge">
-        <p className="px-4 pt-3 text-sm text-muted">Left out of your score, map, fixes and practice. Kept on this device only.</p>
+        <p className="px-4 pt-3 text-sm text-muted">Left out of your score, map, fixes and practice. Saved with your results.</p>
         <ul className="divide-y divide-edge">
           {notMe.map((f) => (
             <li key={f.id} className="flex items-center gap-3 px-4 py-2">

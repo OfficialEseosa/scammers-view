@@ -56,7 +56,7 @@ async function ConsentBody() {
                 Scan <strong className="font-semibold">{subject.name}</strong>, the account I&apos;m signed in with
               </span>,
               <span key="public">Public sources only. No logins to my accounts</span>,
-              <span key="kept">Nothing is sent to anyone. Results stay on this device and are deleted when I end the session</span>,
+              <span key="kept">Nothing is sent to anyone. Results are saved encrypted to my account and deleted when I end the session</span>,
             ]}
           />
         </div>

@@ -1,17 +1,19 @@
 /**
- * Owner-only kill switch. When it is on, the proxy turns every page into the
- * "unavailable" screen and every API route into a 503, so nothing can spend
- * money or read data.
+ * Owner-only kill switch, plus the small server-side record store it shares
+ * with the daily scan limit and the encrypted saved scans.
  *
- * The flag has to outlive a single server instance and there is no database,
- * so it lives as one small record in an Apify key-value store (the project
- * already has an Apify token). Reads are cached briefly per instance. If the
- * store cannot be reached the site stays up: an outage there must not take
- * the app down by accident.
+ * Records live in one Postgres table (`public.kv`) in the project's Supabase
+ * database. The table has row level security on and no policies, so the
+ * public key can read or write nothing directly. Access goes through three
+ * database functions (`kv_get`, `kv_put`, `kv_del`) that only run when given
+ * the server's secret (`SUPABASE_KV_SECRET`); the database holds just its hash.
+ *
+ * Reads of the kill flag are cached briefly per instance. If the database
+ * cannot be reached the site stays up: an outage there must not take the app
+ * down by accident.
  */
 
-const API = "https://api.apify.com/v2";
-const STORE_NAME = "scammers-view-flags";
+const FLAG_STORE = "flags";
 const CACHE_MS = 10_000;
 
 export interface KillState {
@@ -22,63 +24,64 @@ export interface KillState {
 
 const recordKey = () => `kill-${process.env.VERCEL_ENV ?? "local"}`;
 
-let storeId: string | null = null;
 let cached: { state: KillState; until: number } | null = null;
 
-async function store(token: string): Promise<string | null> {
-  if (storeId) return storeId;
-  const res = await fetch(`${API}/key-value-stores?name=${STORE_NAME}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) return null;
-  const id = ((await res.json()) as { data?: { id?: string } }).data?.id ?? null;
-  storeId = id;
-  return id;
+function db(): { url: string; key: string; secret: string } | null {
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
+  const secret = process.env.SUPABASE_KV_SECRET?.trim();
+  return url && key && secret ? { url, key, secret } : null;
 }
 
-/** Read one JSON record from the flag store. Null when missing or unreachable. */
-export async function kvGet<T>(key: string): Promise<T | null> {
-  const token = process.env.APIFY_TOKEN;
-  if (!token) return null;
+export function storeConfigured(): boolean {
+  return db() !== null;
+}
+
+async function rpc(fn: "kv_get" | "kv_put" | "kv_del", args: Record<string, unknown>, timeoutMs: number): Promise<Response | null> {
+  const c = db();
+  if (!c) return null;
+  return fetch(`${c.url}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_secret: c.secret, ...args }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
+/** Read one JSON record (from the flag store unless `storeName` is given). Null when missing or unreachable. */
+export async function kvGet<T>(key: string, storeName: string = FLAG_STORE): Promise<T | null> {
   try {
-    const id = await store(token);
-    if (!id) return null;
-    const res = await fetch(`${API}/key-value-stores/${id}/records/${key}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-    return res.ok ? ((await res.json()) as T) : null;
+    const res = await rpc("kv_get", { p_store: storeName, p_key: key }, 5000);
+    if (!res?.ok) return null;
+    return ((await res.json()) as T | null) ?? null;
   } catch {
     return null;
   }
 }
 
-/** Write one JSON record to the flag store. Best effort: failures are swallowed. */
-export async function kvPut(key: string, value: unknown): Promise<boolean> {
-  const token = process.env.APIFY_TOKEN;
-  if (!token) return false;
+/** Write one JSON record (to the flag store unless `storeName` is given). Best effort: failures are swallowed. */
+export async function kvPut(key: string, value: unknown, storeName: string = FLAG_STORE): Promise<boolean> {
   try {
-    const id = await store(token);
-    if (!id) return false;
-    const res = await fetch(`${API}/key-value-stores/${id}/records/${key}`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(value),
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    return res.ok;
+    const res = await rpc("kv_put", { p_store: storeName, p_key: key, p_value: value }, 8000);
+    return !!res?.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete one record. True when it is gone (including when it never existed). */
+export async function kvDelete(key: string, storeName: string = FLAG_STORE): Promise<boolean> {
+  try {
+    const res = await rpc("kv_del", { p_store: storeName, p_key: key }, 8000);
+    return !!res?.ok;
   } catch {
     return false;
   }
 }
 
 export function killSwitchConfigured(): boolean {
-  return Boolean(process.env.APIFY_TOKEN && process.env.ADMIN_EMAIL);
+  return storeConfigured() && Boolean(process.env.ADMIN_EMAIL);
 }
 
 /** The owner's address comes from ADMIN_EMAIL (never from the request or the code). */
@@ -93,45 +96,28 @@ export function isAdmin(email: string | null | undefined): boolean {
 export async function readKill(fresh = false): Promise<KillState> {
   const now = Date.now();
   if (!fresh && cached && cached.until > now) return cached.state;
-  const token = process.env.APIFY_TOKEN;
   let state: KillState = { on: false };
-  if (token) {
-    try {
-      const id = await store(token);
-      if (id) {
-        const res = await fetch(`${API}/key-value-stores/${id}/records/${recordKey()}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-          signal: AbortSignal.timeout(5000),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as KillState;
-          state = { on: data?.on === true, at: data?.at, by: data?.by };
-        }
-      }
-    } catch {
-      // Unreachable store: keep the last known state, or stay up if there is none.
-      if (cached) state = cached.state;
+  try {
+    const res = await rpc("kv_get", { p_store: FLAG_STORE, p_key: recordKey() }, 5000);
+    if (res?.ok) {
+      const data = (await res.json()) as KillState | null;
+      state = { on: data?.on === true, at: data?.at, by: data?.by };
+    } else if (cached) {
+      // Unreachable or refused: keep the last known state, or stay up if there is none.
+      state = cached.state;
     }
+  } catch {
+    if (cached) state = cached.state;
   }
   cached = { state, until: now + CACHE_MS };
   return state;
 }
 
 export async function writeKill(on: boolean, by: string): Promise<KillState> {
-  const token = process.env.APIFY_TOKEN;
-  if (!token) throw new Error("The kill switch needs APIFY_TOKEN.");
-  const id = await store(token);
-  if (!id) throw new Error("The flag store could not be opened.");
+  if (!storeConfigured()) throw new Error("The kill switch needs the database settings (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_KV_SECRET).");
   const state: KillState = { on, at: new Date().toISOString(), by };
-  const res = await fetch(`${API}/key-value-stores/${id}/records/${recordKey()}`, {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(state),
-    cache: "no-store",
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`The flag could not be saved (HTTP ${res.status}).`);
+  const res = await rpc("kv_put", { p_store: FLAG_STORE, p_key: recordKey(), p_value: state }, 8000);
+  if (!res?.ok) throw new Error(`The flag could not be saved (HTTP ${res?.status ?? "no response"}).`);
   cached = { state, until: Date.now() + CACHE_MS };
   return state;
 }

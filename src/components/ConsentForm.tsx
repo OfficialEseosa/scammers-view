@@ -19,6 +19,11 @@ export function ConsentForm({ items, action }: { items: ReactNode[]; action: (fd
   const all = ticked.every(Boolean);
   const dread = useRef<HTMLSpanElement | null>(null);
 
+  // The person is signed in by now: get the face models loading while they read this screen.
+  useEffect(() => {
+    void import("@/lib/face/preload").then((m) => m.preloadFaceModels());
+  }, []);
+
   // Pointer distance drives --i directly on the element: no re-render per mouse move.
   useEffect(() => {
     const el = dread.current;

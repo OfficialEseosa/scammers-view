@@ -1,52 +1,273 @@
-.sv-map { background: var(--surface); font-family: var(--font-sans); }
-.sv-map .leaflet-tile-pane { filter: grayscale(1) contrast(1.05) brightness(1.02); }
-:root:not([data-theme="light"]) .sv-map .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(0.88) contrast(0.95); }
-.sv-map .leaflet-control-attribution { background: color-mix(in srgb, var(--bg) 85%, transparent); color: var(--muted); font-size: 13px; padding: 2px 8px; }
-.sv-map .leaflet-control-attribution a { color: var(--text); }
-.sv-map .leaflet-bar { border: 1px solid var(--border) !important; border-radius: 10px; overflow: hidden; }
-.sv-map .leaflet-bar a { background: var(--bg); color: var(--text); border-color: var(--border); width: 44px; height: 44px; line-height: 44px; }
-.sv-map .leaflet-bar a:hover { background: var(--elevated); }
+/* Where you can be found: the tour. Monochrome; red only for the home area. */
 
-.sv-pin { background: none; border: 0; }
-.sv-pin-body {
-  --c: var(--text);
-  --ink: var(--bg);
+.sv-places { position: relative; display: flex; flex-direction: column; gap: var(--space-6); }
+
+/* ---------- hero ---------- */
+.sv-places-hero {
   position: relative;
-  width: 40px; height: 40px;
-  display: grid; place-items: center;
-  border-radius: 50% 50% 50% 4px;
-  transform: rotate(-45deg);
-  background: var(--c);
-  border: 3px solid var(--ink);
-  box-shadow: 0 0 0 1.5px var(--c), 0 6px 16px rgb(0 0 0 / 0.45);
-  animation: sv-pin-drop 420ms var(--ease-out) both;
+  width: 100%;
+  border-block: 1px solid var(--border);
+  background: var(--sunken);
 }
-.sv-pin-body.is-home { --c: var(--danger); --ink: #000; }
-.sv-pin-body > span {
-  transform: rotate(45deg);
-  font: 600 17px/1 var(--font-display);
-  color: var(--ink);
-}
-.sv-pin.is-selected .sv-pin-body { box-shadow: 0 0 0 3px var(--c), 0 0 0 8px color-mix(in srgb, var(--c) 30%, transparent); }
-.sv-pin.is-approx .sv-pin-body { opacity: 0.85; }
-@keyframes sv-pin-drop {
-  from { opacity: 0; transform: rotate(-45deg) translate(10px, -10px) scale(0.85); }
-  to { opacity: 1; transform: rotate(-45deg); }
+.sv-places-stage { position: relative; isolation: isolate; height: 55svh; min-height: 320px; overflow: hidden; }
+.sv-places-map { position: absolute; inset: 0; background: var(--sunken); font-family: var(--font-sans); }
+.sv-places-map:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
+.sv-places-engine { position: absolute; inset: 0; }
+.sv-places-mapload { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+
+@media (min-width: 768px) {
+  .sv-places-hero { height: clamp(520px, 70vh, 860px); }
+  .sv-places-stage { position: absolute; inset: 0; height: auto; min-height: 0; }
 }
 
-.sv-routine { animation: sv-dash 1.6s linear infinite; }
-@keyframes sv-dash { to { stroke-dashoffset: -28; } }
+/* status chip */
+.sv-places-status {
+  position: absolute; z-index: 1000; top: 12px; left: 12px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--elevated) 92%, transparent);
+  border: 1px solid var(--border-strong);
+  font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.sv-places-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text); animation: sv-blink 1.1s ease-in-out infinite; }
+@keyframes sv-blink { 50% { opacity: 0.25; } }
+@media (min-width: 768px) { .sv-places-status { top: 20px; left: 24px; } }
 
-.sv-popup .leaflet-popup-content-wrapper { background: var(--elevated); color: var(--text); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow-pop); }
-.sv-popup .leaflet-popup-tip { background: var(--elevated); }
-.sv-popup .leaflet-popup-content { margin: 14px 16px; font-size: 16px; line-height: 1.45; width: min(280px, 70vw) !important; }
-.sv-popup .leaflet-popup-close-button { color: var(--muted); width: 36px; height: 36px; font-size: 24px; padding: 4px 0 0 0; }
-.sv-popup a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-.sv-popup .sv-kind { font-size: 15px; color: var(--muted); }
-.sv-popup .sv-fact { font: 600 18px/1.3 var(--font-display); margin: 6px 0 2px; }
-.sv-popup .sv-why { margin-top: 8px; padding: 8px 10px; border-left: 2px solid var(--text); background: var(--surface); border-radius: 0 8px 8px 0; }
-.sv-popup .sv-meta { color: var(--muted); font-size: 15px; }
+.sv-places-auth { position: absolute; inset: 0; z-index: 1001; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 55%, transparent); }
+.sv-places-auth-card { max-width: 22rem; padding: 24px; border-radius: var(--radius-card); background: var(--elevated); border: 1px solid var(--border-strong); box-shadow: var(--shadow-pop); }
 
+/* ---------- panel: bottom sheet on phones, floating card on desktop ---------- */
+.sv-places-panel {
+  position: relative; z-index: 2;
+  margin-top: -20px;
+  padding: 20px 16px 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--border-strong);
+  border-radius: 20px 20px 0 0;
+}
+.sv-places-panel::before {
+  content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px;
+  border-radius: 2px; background: var(--border-strong);
+}
+@media (min-width: 768px) {
+  .sv-places-panel {
+    position: absolute; left: 24px; bottom: 24px; margin: 0;
+    width: min(400px, calc(100% - 48px));
+    padding: 20px;
+    background: var(--elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+  }
+  .sv-places-panel::before { display: none; }
+}
+
+.sv-caption { min-height: 148px; animation: sv-cap-in 260ms var(--ease-out) both; }
+@keyframes sv-cap-in { from { opacity: 0; transform: translateY(6px); } }
+.sv-caption-kind { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.sv-caption-glyph { width: 20px; height: 20px; color: var(--text); }
+.sv-caption-glyph.is-home { color: var(--danger); }
+.sv-caption-count { margin-left: auto; font-family: var(--font-evidence); font-size: 13px; font-variant-numeric: tabular-nums; }
+.sv-caption-title {
+  margin-top: 8px;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(1.5rem, 2.2vw, 2rem); line-height: 1.05; letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.sv-caption-where { margin-top: 4px; font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-caption-when {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-chip);
+  font-family: var(--font-evidence); font-size: 14px;
+}
+.sv-caption-when-glyph { width: 15px; height: 15px; }
+.sv-caption-why { margin-top: 12px; font-size: 16px; line-height: 1.4; max-width: 34ch; }
+.sv-caption-source { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.sv-caption-source a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.sv-caption-fix { display: block; margin-top: 2px; color: var(--text); }
+
+.sv-places-controls { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.sv-play { position: relative; overflow: hidden; min-width: 9.5rem; }
+.sv-play-progress {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--on-accent); opacity: 0.35;
+  transform-origin: left; animation: sv-progress linear both;
+}
+.sv-play-progress.is-paused { animation-play-state: paused; }
+@keyframes sv-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ---------- glyphs ---------- */
+.sv-glyph { display: inline-grid; place-items: center; flex-shrink: 0; }
+.sv-glyph svg { width: 100%; height: 100%; }
+
+/* ---------- stops rail ---------- */
+.sv-places-rail {
+  display: flex; gap: 8px; margin: 0; padding: 2px 0 8px; list-style: none;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scroll-padding-inline: 16px;
+  scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+}
+.sv-places-railitem { flex: 0 0 auto; width: min(16rem, 78vw); scroll-snap-align: start; }
+.sv-stop {
+  position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px;
+  padding: 10px 14px; text-align: left;
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  background: var(--surface); color: var(--text);
+  transition: background-color var(--dur-small) ease, border-color var(--dur-small) ease, color var(--dur-small) ease, transform var(--dur-press) var(--ease-out);
+}
+button.sv-stop:not(:disabled) { cursor: pointer; }
+button.sv-stop:active:not(:disabled) { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) { button.sv-stop:hover:not(:disabled):not(.is-active) { border-color: var(--text); } }
+.sv-stop:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.sv-stop.is-active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.sv-stop.is-active .sv-stop-meta, .sv-stop.is-active .sv-stop-num { color: inherit; opacity: 0.7; }
+.sv-stop-num { font-family: var(--font-evidence); font-size: 13px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+.sv-stop-glyph { width: 22px; height: 22px; }
+.sv-stop.is-home .sv-stop-glyph { color: var(--danger); }
+.sv-stop-name { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-stop-meta { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-stop.is-pending { overflow: hidden; }
+.sv-stop.is-pending::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 8%, transparent), transparent);
+  transform: translateX(-100%); animation: sv-sweep-x 1.4s ease-in-out infinite;
+}
+@keyframes sv-sweep-x { to { transform: translateX(100%); } }
+.sv-stop.is-pending .sv-stop-name, .sv-stop.is-pending .sv-stop-glyph { opacity: 0.55; }
+.sv-stop.is-missing { border-style: dashed; background: transparent; }
+.sv-stop.is-missing .sv-stop-name, .sv-stop.is-missing .sv-stop-glyph { opacity: 0.55; }
+.sv-stop-retry {
+  margin-left: auto; min-height: 36px; padding: 0 10px; flex-shrink: 0;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-chip);
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.sv-stop-retry:hover { border-color: var(--text); }
+
+/* ---------- summary strip ---------- */
+.sv-places-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+.sv-places-counts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 28px; margin: 0; }
+.sv-places-counts > div { display: flex; flex-direction: column-reverse; }
+.sv-places-counts dd { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sv-places-counts dt { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.sv-places-counts > .sv-places-home { flex-direction: row; align-self: center; }
+.sv-places-fixes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sv-fix {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  font-size: 15px; color: var(--text); background: transparent;
+  transition: border-color var(--dur-small) ease, transform var(--dur-press) var(--ease-out);
+}
+.sv-fix svg { color: var(--safe-fg); }
+.sv-fix:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .sv-fix:hover { border-color: var(--text); } }
+.sv-fix-n { font-family: var(--font-evidence); font-size: 13px; color: var(--muted); }
+
+/* ---------- pins ---------- */
+.sv-gpin {
+  --pin: var(--text); --pin-ink: var(--bg);
+  position: relative; display: grid; place-items: center; width: 44px; height: 44px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+  transition: opacity var(--dur-panel) ease;
+}
+.sv-gpin:focus-visible { outline: none; }
+.sv-gpin:focus-visible .sv-gpin-disc { box-shadow: 0 0 0 3px var(--pin-ink), 0 0 0 5px var(--pin); }
+.sv-gpin-drop {
+  position: relative; display: grid; place-items: center;
+  animation: sv-pin-drop 520ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+@keyframes sv-pin-drop { from { opacity: 0; transform: translateY(-22px) scale(0.9); } }
+.sv-gpin-disc {
+  position: relative; z-index: 1; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--pin); color: var(--pin-ink);
+  border: 2px solid var(--pin-ink);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.45);
+  transition: transform var(--dur-small) var(--ease-out);
+}
+.sv-gpin-disc svg { width: 16px; height: 16px; }
+.sv-gpin-ring {
+  position: absolute; width: 30px; height: 30px; border-radius: 50%;
+  border: 1.5px solid var(--pin);
+  animation: sv-ring 2.6s var(--ease-out) infinite;
+  animation-delay: calc(var(--i, 0) * 310ms);
+  pointer-events: none;
+}
+@keyframes sv-ring { 0% { transform: scale(1); opacity: 0.7; } 70%, 100% { transform: scale(2.4); opacity: 0; } }
+.sv-gpin-tag {
+  position: absolute; top: calc(100% + 2px); left: 50%; transform: translate(-50%, -4px);
+  padding: 3px 8px; border-radius: var(--radius-chip);
+  background: var(--pin); color: var(--pin-ink);
+  font: 600 14px/1.3 var(--font-sans); white-space: nowrap; max-width: 14rem; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-small) ease, transform var(--dur-small) var(--ease-out);
+}
+.has-selection .sv-gpin:not(.is-selected) { opacity: 0.42; }
+.has-selection .sv-gpin:not(.is-selected) .sv-gpin-ring { animation: none; opacity: 0; }
+.sv-gpin.is-selected .sv-gpin-disc { transform: scale(1.2); }
+.sv-gpin.is-selected .sv-gpin-tag { opacity: 1; transform: translate(-50%, 4px); }
+@media (hover: hover) and (pointer: fine) {
+  .sv-gpin:hover .sv-gpin-tag { opacity: 1; transform: translate(-50%, 4px); }
+  .sv-gpin:hover { opacity: 1 !important; }
+}
+
+/* home area: a label over a soft circle, never a point */
+.sv-gpin.is-home { width: auto; height: auto; }
+.sv-gpin-chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 6px;
+  border-radius: 999px; background: var(--danger); color: #000;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.4);
+}
+.sv-gpin-chip .sv-gpin-glyph { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #000; color: var(--danger); }
+.sv-gpin-chip .sv-gpin-glyph svg { width: 14px; height: 14px; }
+.sv-gpin-chip-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; text-align: left; }
+.sv-gpin-name { font: 600 14px/1.2 var(--font-sans); white-space: nowrap; }
+.sv-gpin-approx { font-size: 12px; opacity: 0.8; }
+.sv-gpin.is-home.is-selected .sv-gpin-chip { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--danger); }
+.sv-gpin.is-home:focus-visible .sv-gpin-chip { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+
+/* the traveller */
+.sv-gdot {
+  display: block; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--text) 22%, transparent);
+  pointer-events: none;
+}
+
+/* ---------- MapLibre chrome in our greys ---------- */
+.sv-places-map .maplibregl-ctrl-group { background: var(--elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-control); box-shadow: none; overflow: hidden; }
+.sv-places-map .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+.sv-places-map .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+:root:not([data-theme="light"]) .sv-places-map .maplibregl-ctrl-icon { filter: invert(1); }
+.sv-places-map .maplibregl-ctrl-top-right { top: 8px; right: 8px; }
+@media (min-width: 768px) { .sv-places-map .maplibregl-ctrl-top-right { top: 16px; right: 16px; } }
+.sv-places-map .maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--muted); font-size: 12px; }
+.sv-places-map .maplibregl-ctrl-attrib a { color: var(--text); }
+.sv-places-map .maplibregl-ctrl-attrib-button { background-color: var(--elevated); }
+:root:not([data-theme="light"]) .sv-places-map .maplibregl-ctrl-attrib-button { filter: invert(1); }
+.sv-places-map .maplibregl-cooperative-gesture-screen { background: rgb(0 0 0 / 0.55); color: #fff; font: 600 18px/1.3 var(--font-sans); }
+/* On phones the bottom sheet overlaps the map's lower edge: lift the attribution above it. */
+@media (max-width: 767px) { .sv-places-map .maplibregl-ctrl-bottom-right, .sv-places-map .maplibregl-ctrl-bottom-left { bottom: 20px; } }
+
+/* ---------- Leaflet fallback ---------- */
+.sv-leaflet { background: var(--sunken); }
+.sv-leaflet .leaflet-tile-pane { filter: grayscale(1) contrast(1.05) brightness(1.02); }
+:root:not([data-theme="light"]) .sv-leaflet .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(0.85) contrast(0.95); }
+.sv-leaflet .leaflet-control-attribution { background: color-mix(in srgb, var(--bg) 85%, transparent); color: var(--muted); font-size: 12px; }
+.sv-leaflet .leaflet-control-attribution a { color: var(--text); }
+.sv-leaflet .leaflet-bar { border: 1px solid var(--border-strong) !important; border-radius: var(--radius-control); overflow: hidden; }
+.sv-leaflet .leaflet-bar a { background: var(--elevated); color: var(--text); border-color: var(--border); width: 40px; height: 40px; line-height: 40px; }
+.sv-leaflet .leaflet-top.leaflet-left { top: 52px; }
+@media (max-width: 767px) { .sv-leaflet .leaflet-bottom { bottom: 20px; } }
+.sv-lpin { background: none; border: 0; }
+.sv-lpin > .sv-gpin { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
+
+/* ---------- reduced motion: jump cuts, static path ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .sv-pin-body, .sv-routine { animation: none !important; }
+  .sv-gpin-ring, .sv-places-status-dot, .sv-stop.is-pending::after { animation: none !important; }
+  .sv-gpin-ring { opacity: 0.5; transform: scale(1.5); }
+  .sv-gpin-drop { animation-name: sv-fade; }
+  .sv-caption { animation-name: sv-fade; }
+  .sv-play-progress { animation: none; transform: none; opacity: 0; }
 }
+@keyframes sv-fade { from { opacity: 0; } }

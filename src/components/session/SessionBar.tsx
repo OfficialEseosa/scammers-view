@@ -77,7 +77,7 @@ export function SavedScanChip() {
 }
 
 export function SessionBar() {
-  const { subjectName, mock, masked, endSession, ending } = useSession();
+  const { subjectName, mock, masked, endSession, ending, endError } = useSession();
   const [confirming, setConfirming] = useState(false);
   const shownName = masked ? subjectName.split(" ")[0] : subjectName;
 
@@ -116,6 +116,11 @@ export function SessionBar() {
           >
             <div className="mx-auto flex w-full max-w-[96rem] flex-wrap items-center gap-4 px-4 py-4 sm:px-6">
               <p className="font-display text-lg font-semibold">Delete everything from this session?</p>
+              {endError && (
+                <p role="alert" className="basis-full text-danger-fg sm:order-last">
+                  {endError}
+                </p>
+              )}
               <div className="ml-auto flex gap-3">
                 <Button variant="secondary" onClick={() => setConfirming(false)}>
                   Keep going

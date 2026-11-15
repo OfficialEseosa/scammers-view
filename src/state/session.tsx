@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ExposureScore, Finding } from "@/lib/types";
 import { useScanStream, type ScanState } from "@/hooks/useScanStream";
-import { clearScanCache } from "@/hooks/scanCache";
+import { clearScanCache, deleteServerScan, putServerScan, saveScanCache } from "@/hooks/scanCache";
 import { excludeNotMe } from "@/state/notMe";
 import { clearSession, loadSession, saveSession, type SavedSession } from "@/state/sessionPersist";
 import { usePresentationMode } from "@/hooks/usePresentationMode";
@@ -31,14 +31,8 @@ export const RESULT_TABS: { id: ResultsTab; label: string; short: string; gated:
   { id: "fixes", label: "Break the chain", short: "Fixes", gated: false },
   { id: "map", label: "How they'd get in", short: "Attack", gated: true },
   { id: "practice", label: "Practice attacks", short: "Practice", gated: true },
-  { id: "call", label: "Practice call", short: "Call", gated: true },
   { id: "photos", label: "Photos of you", short: "Photos", gated: true },
   { id: "places", label: "Where you can be found", short: "Places", gated: true },
-  { id: "check", label: "Is this a scam?", short: "Check", gated: false, more: true },
-  { id: "quiz", label: "Test yourself", short: "Quiz", gated: true, more: true },
-  { id: "breach", label: "Breaches", short: "Breaches", gated: false, more: true },
-  { id: "campus", label: "Campus scams", short: "Campus", gated: true, more: true },
-  { id: "family", label: "Family", short: "Family", gated: false, more: true },
 ];
 
 const TAB_IDS = new Set(RESULT_TABS.map((t) => t.id));
@@ -56,7 +50,7 @@ export interface Session {
   setFace: (f: FaceStatus) => void;
   /** The scan with everything marked "not me" already taken out (findings, chains, score). */
   scan: Scan;
-  /** Findings the user said aren't them. Memory only, never sent anywhere, gone when the session ends. */
+  /** Findings the user said aren't them. Saved (as ids) with the encrypted scan on their account; gone when the session ends. */
   notMe: Finding[];
   notMeIds: ReadonlySet<string>;
   markNotMe: (fs: Finding[]) => void;
@@ -78,6 +72,8 @@ export interface Session {
   setMasked: (m: boolean) => void;
   ending: boolean;
   endSession: () => void;
+  /** Set when the saved copy on the account could not be deleted; nothing else was cleared. */
+  endError: string | null;
   /** Scenario picked from the scam checker, waiting for the call tab. */
   callScenario: CallScenarioId | null;
   /** Opens the practice call tab with this scenario (unlocking the gated tabs). */
@@ -99,7 +95,13 @@ function toScanState(scan: NonNullable<SavedSession["scan"]>): ScanState {
     chains: scan.chains,
     error: scan.error,
     cachedAt: null,
+    savedNotMeIds: null,
   };
+}
+
+/** What was last saved, so the same result isn't uploaded again. */
+function saveSig(run: number, cachedAt: number | null, findings: number, notMeIds: readonly string[]): string {
+  return `${run}|${cachedAt ?? ""}|${findings}|${[...notMeIds].sort().join(",")}`;
 }
 
 function bootStage(boot: SavedSession | null): Stage {
@@ -243,6 +245,52 @@ function SessionReady({
     });
   }, [mock, subjectEmail, stage, face, tab, unlocked, removed, notMe, raw.phase, raw.message, raw.sources, raw.findings, raw.score, raw.chains, raw.error]);
 
+  // A finished real scan is saved to the account (encrypted on the server) and to this browser,
+  // so reopening it anywhere costs nothing. "Not me" choices are saved with it.
+  const [endError, setEndError] = useState<string | null>(null);
+  const endingRef = useRef(false);
+  const uploadRef = useRef<Promise<unknown> | null>(null);
+  const appliedRef = useRef<string | null>(null);
+  const freshAtRef = useRef<{ run: number; at: number } | null>(null);
+  const lastSigRef = useRef<string>(
+    boot?.scan?.phase === "done" ? saveSig(0, null, boot.scan.findings.length, boot.notMe.map((f) => f.id)) : "",
+  );
+  useEffect(() => {
+    if (mock || !subjectName || raw.phase !== "done" || !raw.findings.length) return;
+    if (raw.cachedAt) {
+      const loadedKey = `${raw.run}|${raw.cachedAt}`;
+      if (appliedRef.current !== loadedKey) {
+        // Just loaded a saved scan: bring back its "not me" choices; nothing to upload.
+        appliedRef.current = loadedKey;
+        const ids = new Set(raw.savedNotMeIds ?? []);
+        const back = raw.findings.filter((f) => ids.has(f.id));
+        lastSigRef.current = saveSig(raw.run, raw.cachedAt, raw.findings.length, back.map((f) => f.id));
+        if (back.length) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring choices that arrived with the saved scan
+          setNotMe((cur) => {
+            const have = new Set(cur.map((f) => f.id));
+            const add = back.filter((f) => !have.has(f.id));
+            return add.length ? [...cur, ...add] : cur;
+          });
+        }
+        return;
+      }
+    }
+    const notMeIds = notMe.map((f) => f.id);
+    const sig = saveSig(raw.run, raw.cachedAt, raw.findings.length, notMeIds);
+    if (sig === lastSigRef.current) return;
+    if (!raw.cachedAt && freshAtRef.current?.run !== raw.run) freshAtRef.current = { run: raw.run, at: Date.now() };
+    const savedAt = raw.cachedAt ?? freshAtRef.current?.at ?? Date.now();
+    const body = { savedAt, findings: raw.findings, chains: raw.chains, score: raw.score, sources: raw.sources, notMeIds };
+    const id = window.setTimeout(() => {
+      if (endingRef.current) return;
+      lastSigRef.current = sig;
+      saveScanCache({ owner: subjectName, ...body });
+      uploadRef.current = putServerScan(body);
+    }, 800);
+    return () => window.clearTimeout(id);
+  }, [mock, subjectName, raw.run, raw.phase, raw.cachedAt, raw.savedNotMeIds, raw.findings, raw.chains, raw.score, raw.sources, notMe]);
+
   const setRemovedFindingIds = useCallback((ids: string[]) => {
     setRemoved((cur) => (cur.join("|") === ids.join("|") ? cur : ids.length ? ids : EMPTY));
   }, []);
@@ -255,21 +303,32 @@ function SessionReady({
   }, [scan.score, scan.findings, scan.chains, removed]);
 
   const endSession = useCallback(() => {
-    clearSession();
-    clearScanCache();
-    clearFaceData();
-    clearVoiceData();
-    disposeVoiceEngine();
-    dropCallTickets();
-    setRemoved(EMPTY);
-    setNotMe(NO_FINDINGS);
-    setNotMeUndo(null);
-    setUnlocked(false);
-    setCallScenario(null);
-    setTab("fixes");
-    setFace("pending");
-    setStage("ended"); // closes the stream and wipes scan state
+    setEndError(null);
+    endingRef.current = true;
     startEnding(async () => {
+      if (!mock) {
+        // The account copy goes first; if that fails, keep everything so the person can retry.
+        await uploadRef.current?.catch(() => {});
+        if (!(await deleteServerScan())) {
+          endingRef.current = false;
+          setEndError("Your saved scan could not be deleted from your account. Check your connection and try again.");
+          return;
+        }
+      }
+      clearSession();
+      clearScanCache();
+      clearFaceData();
+      clearVoiceData();
+      disposeVoiceEngine();
+      dropCallTickets();
+      setRemoved(EMPTY);
+      setNotMe(NO_FINDINGS);
+      setNotMeUndo(null);
+      setUnlocked(false);
+      setCallScenario(null);
+      setTab("fixes");
+      setFace("pending");
+      setStage("ended"); // closes the stream and wipes scan state
       if (mock) router.replace("/");
       else await leave();
     });
@@ -302,6 +361,7 @@ function SessionReady({
       setMasked,
       ending,
       endSession,
+      endError,
       callScenario,
       practiseCall: (sc: CallScenarioId) => {
         setCallScenario(sc);
@@ -310,7 +370,7 @@ function SessionReady({
         window.scrollTo({ top: 0 });
       },
     }),
-    [mock, subjectName, subjectEmail, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, callScenario],
+    [mock, subjectName, subjectEmail, stage, face, scan, notMe, notMeIds, markNotMe, restoreNotMe, notMeUndo, dismissNotMeUndo, removed, setRemovedFindingIds, liveScore, tab, unlocked, masked, setMasked, ending, endSession, endError, callScenario],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

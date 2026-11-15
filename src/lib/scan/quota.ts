@@ -6,8 +6,8 @@ import { isAdmin, kvGet, kvPut } from "@/lib/admin/killSwitch";
  * (Gemini plus Apify), and a finished scan is kept on the person's device, so
  * a few fresh runs a day is plenty.
  *
- * The count is one small record per person per day in the same key-value
- * store as the kill switch. The key is a hash of the email, so the store
+ * The count is one small record per person per day in the same database
+ * table as the kill switch. The key is a hash of the email, so the store
  * never holds an address. The owner is exempt. If the store cannot be
  * reached the scan is allowed: a storage outage must not lock people out.
  */

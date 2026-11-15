@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Finding } from "@/lib/types";
+import { isBulkItem } from "@/lib/findingKinds";
 import { ANCHOR_LABEL, hostOf, safeHref } from "@/components/scan/meta";
 import { maskIn } from "@/components/scan/mask";
 import { Icon3D, CATEGORY_ICON } from "@/design/Icon3D";
@@ -64,7 +65,7 @@ function Row({ f, masked, all }: { f: Finding; masked: boolean; all: Finding[] }
 }
 
 export function FindingFeed({
-  findings,
+  findings: allFindings,
   masked,
   running,
   onNotMe,
@@ -77,6 +78,7 @@ export function FindingFeed({
   onNotMe?: (fs: Finding[]) => void;
   selectable?: boolean;
 }) {
+  const findings = useMemo(() => allFindings.filter((f) => !isBulkItem(f)), [allFindings]);
   const reduced = usePrefersReducedMotion();
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());

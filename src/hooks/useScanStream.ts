@@ -9,7 +9,7 @@ import {
   type SourceType,
 } from "@/lib/types";
 import { buildMockTimeline } from "@/hooks/mockScan";
-import { loadScanCache, saveScanCache } from "@/hooks/scanCache";
+import { fetchServerScan, loadScanCache, putServerScan, saveScanCache, type ScanBody } from "@/hooks/scanCache";
 
 export type ScanPhase = "connecting" | "running" | "done" | "error";
 
@@ -27,8 +27,10 @@ export interface ScanState {
   score: ExposureScore | null;
   chains: AttackChain[];
   error: string | null;
-  /** Set when these results were loaded from this device instead of scanned just now. */
+  /** Set when these results were loaded from a saved scan (account or this device) instead of scanned just now. */
   cachedAt: number | null;
+  /** "Not me" ids that came with a saved scan, for the session to restore. */
+  savedNotMeIds?: string[] | null;
 }
 
 const initial: ScanState = {
@@ -47,12 +49,12 @@ type Action =
   | { type: "fail"; message: string }
   | { type: "reset" }
   | { type: "hydrate"; state: ScanState }
-  | { type: "cached"; at: number; sources: ScanState["sources"] };
+  | { type: "cached"; at: number; sources: ScanState["sources"]; notMeIds: string[] };
 
 function reducer(state: ScanState, action: Action): ScanState {
   if (action.type === "reset") return initial;
   if (action.type === "hydrate") return action.state;
-  if (action.type === "cached") return { ...state, cachedAt: action.at, sources: action.sources, message: "Loaded from this device" };
+  if (action.type === "cached") return { ...state, cachedAt: action.at, sources: action.sources, savedNotMeIds: action.notMeIds, message: "Loaded your saved scan" };
   if (action.type === "fail") {
     if (state.phase === "done") return state;
     return { ...state, phase: "error", error: action.message };
@@ -101,11 +103,7 @@ export function useScanStream(mock: boolean, enabled = true, restore: ScanState 
     restoreRef.current = restore;
   }, [restore]);
 
-  // A finished real scan is remembered on this device, so reopening costs nothing.
-  useEffect(() => {
-    if (mock || !owner || state.phase !== "done" || state.cachedAt !== null) return;
-    saveScanCache({ owner, findings: state.findings, chains: state.chains, score: state.score, sources: state.sources });
-  }, [mock, owner, state.phase, state.cachedAt, state.findings, state.chains, state.score, state.sources]);
+  // Saving a finished scan (account + this device) is done by the session, which also knows the "not me" ids.
 
   useEffect(() => {
     if (restoredDone && run === 0) {
@@ -132,26 +130,55 @@ export function useScanStream(mock: boolean, enabled = true, restore: ScanState 
         const id = window.setTimeout(() => handle(step.event), step.at);
         cleanups.push(() => window.clearTimeout(id));
       }
-    } else if (run === 0 && owner && loadScanCache(owner)) {
-      // Saved results for this person: play them back quickly instead of paying for a new scan.
-      const saved = loadScanCache(owner)!;
-      const ordered = [...saved.findings].reverse();
-      const span = Math.min(5200, 400 + ordered.length * 70);
-      const later = (at: number, fn: () => void) => {
-        const id = window.setTimeout(fn, at);
-        cleanups.push(() => window.clearTimeout(id));
+    } else if (run === 0 && owner) {
+      // A saved scan for this person (account first, this device as the fast layer) is
+      // played back quickly instead of paying for a new scan. Loading it never counts
+      // against the daily limit. Only when neither exists does a real scan start.
+      const local = loadScanCache(owner);
+      let replayTimers: Array<() => void> = [];
+      cleanups.push(() => replayTimers.forEach((c) => c()));
+      const replay = (saved: ScanBody) => {
+        replayTimers.forEach((c) => c());
+        replayTimers = [];
+        dispatch({ type: "reset" });
+        const ordered = [...saved.findings].reverse();
+        const span = Math.min(5200, 400 + ordered.length * 70);
+        const notMeIds = saved.notMeIds ?? [];
+        const later = (at: number, fn: () => void) => {
+          const id = window.setTimeout(fn, at);
+          replayTimers.push(() => window.clearTimeout(id));
+        };
+        later(60, () => dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources, notMeIds }));
+        ordered.forEach((finding, i) => later(120 + (span * i) / Math.max(1, ordered.length), () => handle({ type: "finding", finding })));
+        later(span + 300, () => {
+          if (saved.score) handle({ type: "score", score: saved.score });
+          saved.chains.forEach((chain) => handle({ type: "chain", chain }));
+        });
+        later(span + 500, () => {
+          handle({ type: "done" });
+          dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources, notMeIds });
+        });
       };
-      later(60, () => dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources }));
-      ordered.forEach((finding, i) => later(120 + (span * i) / Math.max(1, ordered.length), () => handle({ type: "finding", finding })));
-      later(span + 300, () => {
-        if (saved.score) handle({ type: "score", score: saved.score });
-        saved.chains.forEach((chain) => handle({ type: "chain", chain }));
-      });
-      later(span + 500, () => {
-        handle({ type: "done" });
-        dispatch({ type: "cached", at: saved.savedAt, sources: saved.sources });
+      if (local) replay(local);
+      void fetchServerScan().then((res) => {
+        if (closed) return;
+        if (res.status === "found") {
+          // Newest copy wins.
+          if (!local || res.scan.savedAt > local.savedAt) {
+            saveScanCache({ ...res.scan, owner });
+            replay(res.scan);
+          } else if (local.savedAt > res.scan.savedAt) {
+            void putServerScan(local);
+          }
+        } else if (!local) {
+          startLive();
+        }
       });
     } else {
+      startLive();
+    }
+
+    function startLive() {
       // Deferred so a React dev double-mount never opens a (billable) connection twice.
       const startId = window.setTimeout(() => {
         const es = new EventSource("/api/scan");
@@ -183,5 +210,6 @@ export function useScanStream(mock: boolean, enabled = true, restore: ScanState 
   }, [mock, run, enabled, restoredDone, owner]);
 
   const restart = useCallback(() => setRun((n) => n + 1), []);
-  return { ...state, restart };
+  /** `run` changes on every Rescan, so a fresh result can be told apart from the one it replaces. */
+  return { ...state, restart, run };
 }

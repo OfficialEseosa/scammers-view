@@ -38,7 +38,7 @@ export function KillPanel({ initialOn, initialAt, configured, env }: { initialOn
       </p>
       {at && <p className="mt-1 text-muted">Last changed {new Date(at).toLocaleString()}</p>}
 
-      {!configured && <p className="mt-6 text-warn-fg">Needs APIFY_TOKEN and ADMIN_EMAIL to be set.</p>}
+      {!configured && <p className="mt-6 text-warn-fg">Needs the database settings and ADMIN_EMAIL to be set.</p>}
       {error && (
         <p role="alert" className="mt-6 text-danger-fg">
           {error}

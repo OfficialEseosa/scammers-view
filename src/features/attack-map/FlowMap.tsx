@@ -3,6 +3,7 @@
 import "@xyflow/react/dist/style.css";
 import "./attack-map.css";
 import "./flow-map.css";
+import "./graph3d.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -94,7 +95,7 @@ function column(count: number, x: number, gap: number): { x: number; y: number }
   return Array.from({ length: count }, (_, i) => ({ x, y: top + i * gap }));
 }
 
-export function FlowMap(props: AttackMapProps & { autoplay?: boolean }) {
+export function FlowMap(props: AttackMapProps & { autoplay?: boolean; startChain?: string | null }) {
   return (
     <ReactFlowProvider>
       <FlowMapInner {...props} />
@@ -102,11 +103,11 @@ export function FlowMap(props: AttackMapProps & { autoplay?: boolean }) {
   );
 }
 
-function FlowMapInner({ findings, chains, score, subjectName, masked, removedFindingIds = EMPTY, className, compact = false, autoplay = false }: AttackMapProps & { autoplay?: boolean }) {
+function FlowMapInner({ findings, chains, score, subjectName, masked, removedFindingIds = EMPTY, className, compact = false, autoplay = false, startChain = null }: AttackMapProps & { autoplay?: boolean; startChain?: string | null }) {
   const removed = useMemo(() => new Set(removedFindingIds), [removedFindingIds]);
   const model = useMemo(() => buildModel(findings, chains, removed), [findings, chains, removed]);
   // Opened from the 3D view: start on the first way in that is still open.
-  const [chainId, setChainId] = useState<string | null>(() => (autoplay ? ((chains.find((c) => !c.steps.some((s) => s.findingIds.some((id) => removedFindingIds.includes(id)))) ?? chains[0])?.id ?? null) : null));
+  const [chainId, setChainId] = useState<string | null>(() => (startChain && chains.some((c) => c.id === startChain) ? startChain : autoplay ? ((chains.find((c) => !c.steps.some((s) => s.findingIds.some((id) => removedFindingIds.includes(id)))) ?? chains[0])?.id ?? null) : null));
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(autoplay);
   const [factOpen, setFactOpen] = useState<string | null>(null);
