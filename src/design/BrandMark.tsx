@@ -5,7 +5,7 @@ import { cn } from "./utils";
 /** The app's logo link. One place to swap the mark. */
 export function BrandMark({ compact = false, size = 30, className }: { compact?: boolean; size?: number; className?: string }) {
   return (
-    <Link href="/" aria-label="Scammer's View, home" className={cn("inline-flex items-center font-display text-fg", className)}>
+    <Link href="/" aria-label="Scammer's View, home" className={cn("inline-flex min-h-11 min-w-11 items-center font-display text-fg", className)}>
       {compact ? (
         <>
           <span className="sm:hidden">

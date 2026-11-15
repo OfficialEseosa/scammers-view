@@ -140,8 +140,8 @@ export function ChangeWatch({
 
       {!store ? (
         <div className="mt-5">
-          <Button onClick={save} disabled={busy || findings.length === 0}>
-            <Fingerprint className="size-5" aria-hidden /> Remember a fingerprint on this device
+          <Button onClick={save} disabled={busy || findings.length === 0} className="max-w-full whitespace-normal py-2 text-left">
+            <Fingerprint className="size-5 shrink-0" aria-hidden /> Remember a fingerprint on this device
           </Button>
           <p className="mt-3 text-sm text-subtle">Kept here only: scrambled hashes, your score and the date. Nothing readable. Nothing sent.</p>
         </div>

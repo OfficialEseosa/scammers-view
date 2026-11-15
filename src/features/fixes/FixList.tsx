@@ -252,7 +252,7 @@ function FixCard(p: CardProps) {
     <>
       {/* Agent first when available — manual steps stay as a backup checklist. */}
       {agent}
-      <ol className="mt-5 grid list-decimal gap-2 pl-6 text-lg leading-snug marker:font-display marker:text-muted">
+      <ol className="mt-5 grid list-decimal grid-cols-1 gap-2 pl-6 text-lg [overflow-wrap:anywhere] leading-snug marker:font-display marker:text-muted">
         {fix.steps.map((s, i) => (
           <li key={i}>{s}</li>
         ))}
@@ -270,7 +270,7 @@ function FixCard(p: CardProps) {
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-base">
           {fix.extraLinks.map((l) => (
             <li key={l.url}>
-              <a href={l.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-muted">
+              <a href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-muted">
                 {l.label}
               </a>
               {!l.confirmed && <span className="ml-1 text-sm text-warn-fg">unverified</span>}

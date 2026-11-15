@@ -52,7 +52,7 @@ function Row({ f, masked, all }: { f: Finding; masked: boolean; all: Finding[] }
           </div>
         )}
         {href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="sv-evidence self-start text-sm underline underline-offset-4 hover:text-muted">
+          <a href={href} target="_blank" rel="noopener noreferrer" className="sv-evidence inline-flex min-h-11 items-center self-start text-sm underline underline-offset-4 hover:text-muted">
             {host}
             <span className="sr-only"> (opens in a new tab)</span>
           </a>

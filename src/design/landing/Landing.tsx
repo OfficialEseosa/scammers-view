@@ -59,10 +59,10 @@ export function Landing({ cta, endCta }: { cta: ReactNode; endCta: ReactNode }) 
           <BrandMark size={30} />
           <span>Every example on this page is fictional.</span>
           <nav aria-label="Legal" className="flex gap-5">
-            <Link href="/privacy" className="underline underline-offset-4 hover:text-fg">
+            <Link href="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-fg">
               Privacy
             </Link>
-            <Link href="/terms" className="underline underline-offset-4 hover:text-fg">
+            <Link href="/terms" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-fg">
               Terms
             </Link>
           </nav>
