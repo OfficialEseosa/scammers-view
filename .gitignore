@@ -47,3 +47,6 @@ next-env.d.ts
 .cache/
 
 .vercel
+
+# Chrome Web Store upload, rebuilt with npm run pack:extension -- --store
+scammers-view-extension-store.zip

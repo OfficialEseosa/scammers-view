@@ -1,4 +1,5 @@
-// Run: npm run pack:extension
+// Run: npm run pack:extension            (the site download, files inside a folder)
+//      npm run pack:extension -- --store  (for the Chrome Web Store: manifest.json at the top level)
 // Zips extension/ into public/scammers-view-extension.zip, the file the landing page's
 // "Get the extension" button downloads. Re-run after changing anything under extension/.
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -6,8 +7,9 @@ import { join, relative, sep } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
 
 const SRC = "extension";
-const ROOT = "scammers-view-extension";
-const OUT = "public/scammers-view-extension.zip";
+const STORE = process.argv.includes("--store");
+const ROOT = STORE ? "" : "scammers-view-extension/";
+const OUT = STORE ? "scammers-view-extension-store.zip" : "public/scammers-view-extension.zip";
 
 function walk(dir) {
   return readdirSync(dir)
@@ -26,7 +28,7 @@ const local = [];
 const central = [];
 let offset = 0;
 for (const file of walk(SRC)) {
-  const name = Buffer.from(`${ROOT}/${relative(SRC, file).split(sep).join("/")}`, "utf8");
+  const name = Buffer.from(`${ROOT}${relative(SRC, file).split(sep).join("/")}`, "utf8");
   const data = readFileSync(file);
   const packed = deflateRawSync(data, { level: 9 });
   const head = Buffer.alloc(30);
