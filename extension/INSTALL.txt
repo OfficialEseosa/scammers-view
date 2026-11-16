@@ -1,0 +1,38 @@
+SCAMMER'S VIEW: EXTENSION FOR AUTOMATION
+How to install and use it (Chrome on a computer; phones cannot run extensions)
+
+INSTALL
+1. Unzip this file. You get a folder named "scammers-view-extension".
+2. In Chrome, open  chrome://extensions
+3. Turn on "Developer mode" (top right).
+4. Click "Load unpacked" and choose the "scammers-view-extension" folder.
+5. Pin it: click the puzzle icon in the toolbar, then the pin next to Scammer's View.
+
+CONNECT IT TO THE APP
+The extension talks to http://localhost:3000 by default.
+If you use the app at another address:
+1. Click the Scammer's View icon.
+2. Under "App address", enter the site's https:// address and press Save.
+3. Allow the permission Chrome asks for.
+Then reload the app tab (Ctrl+Shift+R) so the app can see the extension.
+
+USE IT: CLEAN UP FOR ME
+1. Sign in to the app and run a scan.
+2. On the "Break the chain" tab, open a fix and press "Clean this up for me".
+3. A new tab opens on that site. Sign in there yourself if asked; the extension never
+   types passwords.
+4. A bar at the top of the tab says what it is about to do. Press "Do it" or "Okay" to
+   allow each step, "Skip" to pass, "Stop" to end.
+5. If it meets a robot check, a sign-in or anything it is unsure about, it waits for you.
+   Finish that step, then press "I did it, continue".
+
+USE IT: CHECK A MESSAGE
+- Select text or a link on any page, right-click, choose "Check with Scammer's View".
+- Or click the icon, press "Check a message", and paste the text.
+
+GOOD TO KNOW
+- It only works on the sites it lists, and only types the details you approved.
+- It asks before anything that submits a form or changes a setting.
+- After updating the extension files, click Reload on its card in chrome://extensions,
+  then refresh the app tab.
+- To remove it: chrome://extensions, then Remove on the Scammer's View card.

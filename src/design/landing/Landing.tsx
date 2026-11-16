@@ -29,7 +29,7 @@ export function Landing({ cta, endCta }: { cta: ReactNode; endCta: ReactNode }) 
             How it works
           </Link>
           <a href="/scammers-view-extension.zip" download className={buttonClass("secondary", "sm", "max-md:hidden")}>
-            Get the extension
+            Extension for automation
           </a>
           <Link href="#compare" className="text-muted hover:text-fg max-md:hidden">
             Compare
